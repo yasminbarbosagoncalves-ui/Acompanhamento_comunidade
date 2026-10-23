@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block conteudo %}
+
+<h2>Setores Cadastrados</h2>
+
+<p><a href="/setores/novo">Cadastrar novo setor</a></p>
+
+<table border="1" cellpadding="8">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Nome do setor</th>
+            <th>Responsável</th>
+        </tr>
+    </thead>
+
+    <tbody>
+        {% for setor in setores %}
+        <tr>
+            <td>{{ setor.id_setor }}</td>
+            <td>{{ setor.nome_setor }}</td>
+            <td>{{ setor.responsavel or '' }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% endblock %}

@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block conteudo %}
+
+<h2>Cadastrar novo usuário</h2>
+
+<form method="POST" action="/usuarios/novo">
+
+    <p>
+        <label>Nome:</label><br>
+        <input type="text" name="nome" maxlength="100" required>
+    </p>
+
+    <p>
+        <label>Login:</label><br>
+        <input type="text" name="login" maxlength="50" required>
+    </p>
+
+    <p>
+        <label>Senha:</label><br>
+        <input type="password" name="senha" maxlength="255" required>
+    </p>
+
+    <p>
+        <label>Perfil:</label><br>
+        <select name="perfil" required>
+            <option value="">Selecione</option>
+            <option value="Morador">Morador</option>
+            <option value="Atendente">Atendente</option>
+            <option value="Engenheira">Engenheira</option>
+            <option value="Administrador">Administrador</option>
+        </select>
+    </p>
+
+    <button type="submit">Cadastrar usuário</button>
+
+</form>
+
+<p>
+    <a href="/usuarios">Voltar para a lista</a>
+</p>
+
+{% endblock %}
