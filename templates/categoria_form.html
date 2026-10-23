@@ -1,0 +1,27 @@
+HTML
+{% extends "base.html" %}
+
+{% block conteudo %}
+
+<h2>Cadastrar nova categoria</h2>
+
+<form method="POST" action="/categorias/novo">
+
+    <p>
+        <label>Nome da categoria:</label><br>
+        <input type="text" name="nome_categoria"
+               maxlength="50" required>
+    </p>
+
+    <p>
+        <label>Descrição:</label><br>
+        <textarea name="descricao" maxlength="200"></textarea>
+    </p>
+
+    <button type="submit">Cadastrar categoria</button>
+
+</form>
+
+<p><a href="/categorias">Voltar para a lista</a></p>
+
+{% endblock %}

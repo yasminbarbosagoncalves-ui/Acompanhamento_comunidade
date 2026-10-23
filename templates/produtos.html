@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block conteudo %}
+
+<h2>Produtos Cadastrados</h2>
+
+<p><a href="/produtos/novo">Cadastrar novo produto</a></p>
+
+<table border="1" cellpadding="8">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Nome</th>
+            <th>Descrição</th>
+            <th>Preço</th>
+            <th>Quantidade</th>
+            <th>Categoria</th>
+            <th>Status</th>
+            <th>Data de cadastro</th>
+        </tr>
+    </thead>
+
+    <tbody>
+        {% for produto in produtos %}
+        <tr>
+            <td>{{ produto.id }}</td>
+            <td>{{ produto.nome }}</td>
+            <td>{{ produto.descricao or '' }}</td>
+            <td>R$ {{ "%.2f"|format(produto.preco) }}</td>
+            <td>{{ produto.quantidade }}</td>
+            <td>{{ produto.categoria or '' }}</td>
+            <td>{{ produto.status }}</td>
+            <td>{{ produto.data_cadastro }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% endblock %}

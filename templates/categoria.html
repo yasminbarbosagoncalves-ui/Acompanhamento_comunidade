@@ -1,0 +1,30 @@
+HTML
+{% extends "base.html" %}
+
+{% block conteudo %}
+
+<h2>Categorias Cadastradas</h2>
+
+<p><a href="/categorias/novo">Cadastrar nova categoria</a></p>
+
+<table border="1" cellpadding="8">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Nome da categoria</th>
+            <th>Descrição</th>
+        </tr>
+    </thead>
+
+    <tbody>
+        {% for categoria in categorias %}
+        <tr>
+            <td>{{ categoria.id_categoria }}</td>
+            <td>{{ categoria.nome_categoria }}</td>
+            <td>{{ categoria.descricao or '' }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% endblock %}

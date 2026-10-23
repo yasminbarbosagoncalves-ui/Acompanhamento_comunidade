@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block conteudo %}
+
+<h2>Cadastrar novo produto</h2>
+
+<form method="POST" action="/produtos/novo">
+
+    <p>
+        <label>Nome:</label><br>
+        <input type="text" name="nome" maxlength="150" required>
+    </p>
+
+    <p>
+        <label>Descrição:</label><br>
+        <textarea name="descricao"></textarea>
+    </p>
+
+    <p>
+        <label>Preço:</label><br>
+        <input type="number" name="preco"
+               min="0" step="0.01" value="0.00" required>
+    </p>
+
+    <p>
+        <label>Quantidade:</label><br>
+        <input type="number" name="quantidade"
+               min="0" step="1" value="0" required>
+    </p>
+
+    <p>
+        <label>Categoria:</label><br>
+        <input type="text" name="categoria" maxlength="100">
+    </p>
+
+    <p>
+        <label>Imagem (caminho ou nome do arquivo):</label><br>
+        <input type="text" name="imagem" maxlength="255">
+    </p>
+
+    <p>
+        <label>Status:</label><br>
+        <select name="status" required>
+            <option value="ativo">Ativo</option>
+            <option value="inativo">Inativo</option>
+        </select>
+    </p>
+
+    <button type="submit">Cadastrar produto</button>
+
+</form>
+
+<p><a href="/produtos">Voltar para a lista</a></p>
+
+{% endblock %}

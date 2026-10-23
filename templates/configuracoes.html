@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block conteudo %}
+
+<h2>Configurações do sistema</h2>
+
+<p>
+    <a href="/configuracoes/editar/{{ configuracao.id }}">
+        Editar configurações
+    </a>
+</p>
+
+<table border="1" cellpadding="8">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Nome do site</th>
+            <th>E-mail</th>
+            <th>Telefone</th>
+            <th>Endereço</th>
+            <th>Moeda</th>
+            <th>Notificações</th>
+            <th>Última atualização</th>
+        </tr>
+    </thead>
+
+    <tbody>
+        <tr>
+            <td>{{ configuracao.id }}</td>
+            <td>{{ configuracao.nome_site }}</td>
+            <td>{{ configuracao.email_contato or '' }}</td>
+            <td>{{ configuracao.telefone or '' }}</td>
+            <td>{{ configuracao.endereco or '' }}</td>
+            <td>{{ configuracao.moeda }}</td>
+            <td>
+                {{ 'Ativas' if configuracao.notificacoes_ativas else 'Inativas' }}
+            </td>
+            <td>{{ configuracao.data_atualizacao }}</td>
+        </tr>
+    </tbody>
+</table>
+
+{% endblock %}

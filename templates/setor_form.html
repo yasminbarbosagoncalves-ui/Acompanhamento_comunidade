@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block conteudo %}
+
+<h2>Cadastrar novo setor</h2>
+
+<form method="POST" action="/setores/novo">
+
+    <p>
+        <label>Nome do setor:</label><br>
+        <input type="text" name="nome_setor"
+               maxlength="100" required>
+    </p>
+
+    <p>
+        <label>Responsável:</label><br>
+        <input type="text" name="responsavel"
+               maxlength="100">
+    </p>
+
+    <button type="submit">Cadastrar setor</button>
+
+</form>
+
+<p><a href="/setores">Voltar para a lista</a></p>
+
+{% endblock %}

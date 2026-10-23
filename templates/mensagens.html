@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block conteudo %}
+
+<h2>Mensagens Cadastradas</h2>
+
+<p><a href="/mensagens/novo">Cadastrar nova mensagem</a></p>
+
+<table border="1" cellpadding="8">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Remetente</th>
+            <th>E-mail</th>
+            <th>Assunto</th>
+            <th>Mensagem</th>
+            <th>Resposta</th>
+            <th>Status</th>
+            <th>Data de envio</th>
+        </tr>
+    </thead>
+
+    <tbody>
+        {% for mensagem in mensagens %}
+        <tr>
+            <td>{{ mensagem.id }}</td>
+            <td>{{ mensagem.nome_remetente }}</td>
+            <td>{{ mensagem.email_remetente or '' }}</td>
+            <td>{{ mensagem.assunto }}</td>
+            <td>{{ mensagem.mensagem }}</td>
+            <td>{{ mensagem.resposta or '' }}</td>
+            <td>{{ mensagem.status }}</td>
+            <td>{{ mensagem.data_envio }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% endblock %}

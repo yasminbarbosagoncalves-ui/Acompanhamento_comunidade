@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block conteudo %}
+
+<h2>Cadastrar nova mensagem</h2>
+
+<form method="POST" action="/mensagens/novo">
+
+    <p>
+        <label>Nome do remetente:</label><br>
+        <input type="text" name="nome_remetente"
+               maxlength="150" required>
+    </p>
+
+    <p>
+        <label>E-mail:</label><br>
+        <input type="email" name="email_remetente"
+               maxlength="180">
+    </p>
+
+    <p>
+        <label>Assunto:</label><br>
+        <input type="text" name="assunto"
+               maxlength="200" required>
+    </p>
+
+    <p>
+        <label>Mensagem:</label><br>
+        <textarea name="mensagem" required></textarea>
+    </p>
+
+    <p>
+        <label>Resposta:</label><br>
+        <textarea name="resposta"></textarea>
+    </p>
+
+    <p>
+        <label>Status:</label><br>
+        <select name="status" required>
+            <option value="não lida">Não lida</option>
+            <option value="lida">Lida</option>
+            <option value="respondida">Respondida</option>
+        </select>
+    </p>
+
+    <button type="submit">Cadastrar mensagem</button>
+
+</form>
+
+<p><a href="/mensagens">Voltar para a lista</a></p>
+
+{% endblock %}

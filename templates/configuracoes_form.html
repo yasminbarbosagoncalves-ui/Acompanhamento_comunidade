@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block conteudo %}
+
+<h2>Editar configurações do sistema</h2>
+
+<form method="POST"
+      action="/configuracoes/editar/{{ configuracao.id }}">
+
+    <p>
+        <label>Nome do site:</label><br>
+        <input type="text" name="nome_site"
+               maxlength="150"
+               value="{{ configuracao.nome_site }}" required>
+    </p>
+
+    <p>
+        <label>E-mail de contato:</label><br>
+        <input type="email" name="email_contato"
+               maxlength="180"
+               value="{{ configuracao.email_contato or '' }}">
+    </p>
+
+    <p>
+        <label>Telefone:</label><br>
+        <input type="text" name="telefone"
+               maxlength="30"
+               value="{{ configuracao.telefone or '' }}">
+    </p>
+
+    <p>
+        <label>Endereço:</label><br>
+        <input type="text" name="endereco"
+               maxlength="255"
+               value="{{ configuracao.endereco or '' }}">
+    </p>
+
+    <p>
+        <label>Moeda:</label><br>
+        <select name="moeda" required>
+            <option value="BRL"
+                {% if configuracao.moeda == 'BRL' %}selected{% endif %}>
+                BRL - Real brasileiro
+            </option>
+            <option value="USD"
+                {% if configuracao.moeda == 'USD' %}selected{% endif %}>
+                USD - Dólar americano
+            </option>
+            <option value="EUR"
+                {% if configuracao.moeda == 'EUR' %}selected{% endif %}>
+                EUR - Euro
+            </option>
+        </select>
+    </p>
+
+    <p>
+        <label>Notificações:</label><br>
+        <select name="notificacoes_ativas" required>
+            <option value="1"
+                {% if configuracao.notificacoes_ativas %}selected{% endif %}>
+                Ativas
+            </option>
+            <option value="0"
+                {% if not configuracao.notificacoes_ativas %}selected{% endif %}>
+                Inativas
+            </option>
+        </select>
+    </p>
+
+    <button type="submit">Salvar configurações</button>
+
+</form>
+
+<p><a href="/configuracoes">Voltar</a></p>
+
+{% endblock %}
