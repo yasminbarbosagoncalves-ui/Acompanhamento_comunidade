@@ -4,6 +4,7 @@ from config import DB_CONFIG
 from werkzeug.security import generate_password_hash
 from html import escape
 from decimal import Decimal, InvalidOperation
+from functools import wraps
 
 app = Flask(__name__)
 
@@ -19,18 +20,15 @@ def conectar():
 def executar_sql(sql, parametros=()):
     conexao = None
     cursor = None
-
     try:
         conexao = conectar()
         cursor = conexao.cursor()
         cursor.execute(sql, parametros)
         conexao.commit()
-
     except mysql.connector.Error:
         if conexao and conexao.is_connected():
             conexao.rollback()
         raise
-
     finally:
         if cursor:
             cursor.close()
@@ -41,13 +39,11 @@ def executar_sql(sql, parametros=()):
 def consultar_sql(sql, parametros=()):
     conexao = None
     cursor = None
-
     try:
         conexao = conectar()
         cursor = conexao.cursor(dictionary=True)
         cursor.execute(sql, parametros)
         return cursor.fetchall()
-
     finally:
         if cursor:
             cursor.close()
@@ -67,9 +63,7 @@ def pagina_html(titulo, conteudo):
         <meta charset="UTF-8">
         <meta name="viewport"
               content="width=device-width, initial-scale=1">
-
         <title>{escape(titulo)}</title>
-
         <style>
             body {{
                 font-family: Arial, sans-serif;
@@ -77,33 +71,20 @@ def pagina_html(titulo, conteudo):
                 background: #f4f6f9;
                 color: #222;
             }}
-
-            h1, h2 {{
-                color: #245b45;
-            }}
-
+            h1, h2 {{ color: #245b45; }}
             table {{
                 width: 100%;
                 border-collapse: collapse;
                 background: white;
             }}
-
             th, td {{
                 border: 1px solid #ddd;
                 padding: 10px;
                 text-align: left;
                 overflow-wrap: anywhere;
             }}
-
-            th {{
-                background: #245b45;
-                color: white;
-            }}
-
-            tr:nth-child(even) {{
-                background: #eef3f0;
-            }}
-
+            th {{ background: #245b45; color: white; }}
+            tr:nth-child(even) {{ background: #eef3f0; }}
             input, select, textarea {{
                 width: 100%;
                 max-width: 550px;
@@ -111,11 +92,7 @@ def pagina_html(titulo, conteudo):
                 margin-top: 5px;
                 box-sizing: border-box;
             }}
-
-            textarea {{
-                min-height: 100px;
-            }}
-
+            textarea {{ min-height: 100px; }}
             button, .botao {{
                 display: inline-block;
                 background: #245b45;
@@ -127,17 +104,10 @@ def pagina_html(titulo, conteudo):
                 text-decoration: none;
                 margin: 8px 4px 8px 0;
             }}
-
-            a {{
-                color: #176b4d;
-            }}
-
-            .campo {{
-                margin-bottom: 15px;
-            }}
+            a {{ color: #176b4d; }}
+            .campo {{ margin-bottom: 15px; }}
         </style>
     </head>
-
     <body>
         {conteudo}
     </body>
@@ -145,7 +115,8 @@ def pagina_html(titulo, conteudo):
     """
 
 
-def listar_dados(titulo, sql, colunas):
+def listar_dados(titulo, sql, colunas, acoes=None):
+    """acoes=("/moradores", "id_morador") mostra Cadastrar / Editar / Excluir."""
     try:
         registros = consultar_sql(sql)
 
@@ -153,6 +124,12 @@ def listar_dados(titulo, sql, colunas):
         <h1>{escape(titulo)}</h1>
         <a href="/">Voltar ao início</a>
         """
+
+        if acoes:
+            html += (
+                f'<a class="botao" '
+                f'href="{escape(acoes[0], quote=True)}/novo">+ Cadastrar</a>'
+            )
 
         if not registros:
             html += "<p>Nenhum registro encontrado.</p>"
@@ -162,6 +139,9 @@ def listar_dados(titulo, sql, colunas):
             for rotulo, campo in colunas:
                 html += f"<th>{escape(rotulo)}</th>"
 
+            if acoes:
+                html += "<th>Ações</th>"
+
             html += "</tr></thead><tbody>"
 
             for registro in registros:
@@ -169,14 +149,29 @@ def listar_dados(titulo, sql, colunas):
 
                 for rotulo, campo in colunas:
                     valor = registro.get(campo)
-                    texto = "" if valor is None else str(valor)
-                    html += f"<td>{escape(texto)}</td>"
+                    texto_celula = "" if valor is None else str(valor)
+                    html += f"<td>{escape(texto_celula)}</td>"
+
+                if acoes:
+                    base = escape(acoes[0], quote=True)
+                    id_registro = escape(str(registro.get(acoes[1])), quote=True)
+                    html += f"""
+                    <td>
+                        <a href="{base}/{id_registro}/editar">Editar</a>
+                        <form method="POST"
+                              action="{base}/{id_registro}/excluir"
+                              style="display:inline"
+                              onsubmit="return confirm('Excluir este registro?');">
+                            <button type="submit">Excluir</button>
+                        </form>
+                    </td>
+                    """
 
                 html += "</tr>"
 
             html += "</tbody></table>"
 
-        return pagina_html(titulo, html)
+        return pagina_html(titulo, html), 200
 
     except mysql.connector.Error:
         return pagina_html(
@@ -233,7 +228,6 @@ def formulario_html(titulo, action, campos, valores=None):
                     if str(valor) == str(opcao_valor)
                     else ""
                 )
-
                 html += (
                     f'<option value="{escape(str(opcao_valor), quote=True)}" '
                     f'{selecionado}>'
@@ -248,6 +242,8 @@ def formulario_html(titulo, action, campos, valores=None):
                 f'maxlength="{int(max_length)}"'
                 if max_length else ""
             )
+            step = campo.get("step")
+            step_attr = f'step="{escape(str(step), quote=True)}"' if step else ""
 
             html += f"""
             <input type="{escape(tipo, quote=True)}"
@@ -255,6 +251,7 @@ def formulario_html(titulo, action, campos, valores=None):
                    name="{escape(nome)}"
                    value="{escape(str(valor or ""), quote=True)}"
                    {max_attr}
+                   {step_attr}
                    {requerido}>
             """
 
@@ -265,7 +262,7 @@ def formulario_html(titulo, action, campos, valores=None):
     </form>
     """
 
-    return pagina_html(titulo, html)
+    return pagina_html(titulo, html), 200
 
 
 def erro_formulario(mensagem, codigo=400):
@@ -273,6 +270,78 @@ def erro_formulario(mensagem, codigo=400):
         "Aviso",
         f"<h1>{escape(mensagem)}</h1><a href='/'>Voltar</a>"
     ), codigo
+
+
+# =====================================================
+# HELPERS
+# =====================================================
+
+def tratar_erro_banco(funcao):
+    """Decorator: qualquer erro do MySQL vira uma página de aviso."""
+    @wraps(funcao)
+    def interna(*args, **kwargs):
+        try:
+            return funcao(*args, **kwargs)
+        except mysql.connector.Error:
+            return erro_formulario("Erro ao acessar o banco de dados.", 500)
+    return interna
+
+
+def buscar_um(sql, parametros=()):
+    registros = consultar_sql(sql, parametros)
+    return registros[0] if registros else None
+
+
+def opcoes_select(sql, campo_id, campo_texto, parametros=()):
+    return [(r[campo_id], r[campo_texto])
+            for r in consultar_sql(sql, parametros)]
+
+
+def preencher_opcoes(campos, **opcoes):
+    resultado = []
+    for campo in campos:
+        campo = dict(campo)
+        if campo["nome"] in opcoes:
+            campo["opcoes"] = opcoes[campo["nome"]]
+        resultado.append(campo)
+    return resultado
+
+
+def texto(nome):
+    return request.form.get(nome, "").strip()
+
+
+def ler_int(nome):
+    try:
+        return int(request.form.get(nome, ""))
+    except (ValueError, TypeError):
+        return None
+
+
+def mensagem_erro_banco(erro, padrao):
+    conhecidos = {
+        1452: "Chave estrangeira inválida: o registro relacionado não existe.",
+        1451: "Não é possível excluir: o registro está sendo usado em outra tabela.",
+        1062: "Já existe um registro com esses dados.",
+    }
+    return conhecidos.get(erro.errno, padrao), (400 if erro.errno in conhecidos else 500)
+
+
+def salvar(sql, parametros, destino, padrao):
+    try:
+        executar_sql(sql, parametros)
+        return redirect(url_for(destino))
+    except mysql.connector.Error as erro:
+        return erro_formulario(*mensagem_erro_banco(erro, padrao))
+
+
+def excluir(tabela, chave, id_registro, destino):
+    return salvar(
+        f"DELETE FROM {tabela} WHERE {chave} = %s",
+        (id_registro,),
+        destino,
+        "Não foi possível excluir o registro."
+    )
 
 
 # =====================================================
@@ -290,29 +359,25 @@ def index():
 
     links = [
         ("Usuários", "/usuarios", "/usuarios/novo"),
-        ("Moradores", "/moradores", None),
+        ("Moradores", "/moradores", "/moradores/novo"),
         ("Setores", "/setores", "/setores/novo"),
-        ("Funcionários", "/funcionarios", None),
+        ("Funcionários", "/funcionarios", "/funcionarios/novo"),
         ("Categorias", "/categorias", "/categorias/novo"),
-        ("Solicitações", "/solicitacoes", None),
-        ("Histórico", "/historico", None),
+        ("Solicitações", "/solicitacoes", "/solicitacoes/novo"),
+        ("Histórico", "/historico", "/historico/novo"),
         ("Produtos", "/produtos", "/produtos/novo"),
         ("Mensagens", "/mensagens", "/mensagens/novo"),
-        ("Configurações", "/configuracoes",
-         "/configuracoes/novo"),
+        ("Configurações", "/configuracoes", "/configuracoes/novo"),
     ]
 
     for nome, consulta, cadastro in links:
         html += f'<li><a href="{consulta}">{nome}</a>'
-
         if cadastro:
             html += f' | <a href="{cadastro}">Cadastrar</a>'
-
         html += "</li>"
 
     html += "</ul>"
-
-    return pagina_html("Acompanhamento da Comunidade", html)
+    return pagina_html("Acompanhamento da Comunidade", html), 200
 
 
 # =====================================================
@@ -320,38 +385,21 @@ def index():
 # =====================================================
 
 CAMPOS_USUARIO = [
-    {
-        "nome": "nome",
-        "rotulo": "Nome",
-        "obrigatorio": True,
-        "maxlength": 100
-    },
-    {
-        "nome": "login",
-        "rotulo": "Login",
-        "obrigatorio": True,
-        "maxlength": 50
-    },
-    {
-        "nome": "senha",
-        "rotulo": "Senha",
-        "tipo": "password",
-        "obrigatorio": True,
-        "maxlength": 255
-    },
-    {
-        "nome": "perfil",
-        "rotulo": "Perfil",
-        "tipo": "select",
-        "obrigatorio": True,
-        "opcoes": [
-            ("Morador", "Morador"),
-            ("Atendente", "Atendente"),
-            ("Engenheira", "Engenheira"),
-            ("Administrador", "Administrador")
-        ]
-    }
+    {"nome": "nome", "rotulo": "Nome", "obrigatorio": True, "maxlength": 100},
+    {"nome": "login", "rotulo": "Login", "obrigatorio": True, "maxlength": 50},
+    {"nome": "senha", "rotulo": "Senha", "tipo": "password",
+     "obrigatorio": True, "maxlength": 255},
+    {"nome": "perfil", "rotulo": "Perfil", "tipo": "select",
+     "obrigatorio": True,
+     "opcoes": [
+         ("Morador", "Morador"),
+         ("Atendente", "Atendente"),
+         ("Engenheira", "Engenheira"),
+         ("Administrador", "Administrador"),
+     ]},
 ]
+
+PERFIS_VALIDOS = ("Morador", "Atendente", "Engenheira", "Administrador")
 
 
 @app.route("/usuarios")
@@ -366,57 +414,142 @@ def listar_usuarios():
             ("ID", "id_usuario"),
             ("Nome", "nome"),
             ("Login", "login"),
-            ("Perfil", "perfil")
-        ]
+            ("Perfil", "perfil"),
+        ],
+        acoes=("/usuarios", "id_usuario")
     )
 
 
 @app.route("/usuarios/novo", methods=["GET", "POST"])
+@tratar_erro_banco
 def cadastrar_usuario():
     if request.method == "GET":
         return formulario_html(
-            "Cadastrar usuário",
-            "/usuarios/novo",
-            CAMPOS_USUARIO
+            "Cadastrar usuário", "/usuarios/novo", CAMPOS_USUARIO
         )
 
-    nome = request.form.get("nome", "").strip()
-    login = request.form.get("login", "").strip()
+    nome = texto("nome")
+    login = texto("login")
     senha = request.form.get("senha", "")
-    perfil = request.form.get("perfil", "").strip()
+    perfil = texto("perfil")
 
     if not nome or not login or not senha or not perfil:
-        return erro_formulario(
-            "Preencha todos os campos obrigatórios."
-        )
+        return erro_formulario("Preencha todos os campos obrigatórios.")
 
-    if perfil not in (
-        "Morador", "Atendente", "Engenheira", "Administrador"
-    ):
+    if perfil not in PERFIS_VALIDOS:
         return erro_formulario("Perfil inválido.")
 
     senha_hash = generate_password_hash(senha)
 
-    try:
-        executar_sql(
+    return salvar(
+        """
+        INSERT INTO usuario (nome, login, senha, perfil)
+        VALUES (%s, %s, %s, %s)
+        """,
+        (nome, login, senha_hash, perfil),
+        "listar_usuarios",
+        "Não foi possível cadastrar o usuário."
+    )
+
+
+@app.route("/usuarios/<int:id_usuario>/editar", methods=["GET", "POST"])
+@tratar_erro_banco
+def editar_usuario(id_usuario):
+    registro = buscar_um(
+        "SELECT * FROM usuario WHERE id_usuario = %s", (id_usuario,)
+    )
+    if not registro:
+        return erro_formulario("Usuário não encontrado.", 404)
+
+    if request.method == "GET":
+        registro_view = dict(registro)
+        registro_view["senha"] = ""
+        return formulario_html(
+            "Editar usuário", f"/usuarios/{id_usuario}/editar",
+            CAMPOS_USUARIO, registro_view
+        )
+
+    nome = texto("nome")
+    login = texto("login")
+    senha = request.form.get("senha", "")
+    perfil = texto("perfil")
+
+    if not nome or not login or not perfil:
+        return erro_formulario("Preencha nome, login e perfil.")
+
+    if perfil not in PERFIS_VALIDOS:
+        return erro_formulario("Perfil inválido.")
+
+    if senha:
+        return salvar(
             """
-            INSERT INTO usuario (nome, login, senha, perfil)
-            VALUES (%s, %s, %s, %s)
+            UPDATE usuario
+            SET nome = %s, login = %s, senha = %s, perfil = %s
+            WHERE id_usuario = %s
             """,
-            (nome, login, senha_hash, perfil)
+            (nome, login, generate_password_hash(senha), perfil, id_usuario),
+            "listar_usuarios",
+            "Não foi possível atualizar o usuário."
         )
 
-        return redirect(url_for("listar_usuarios"))
+    return salvar(
+        """
+        UPDATE usuario
+        SET nome = %s, login = %s, perfil = %s
+        WHERE id_usuario = %s
+        """,
+        (nome, login, perfil, id_usuario),
+        "listar_usuarios",
+        "Não foi possível atualizar o usuário."
+    )
 
-    except mysql.connector.Error:
-        return erro_formulario(
-            "Não foi possível cadastrar o usuário.", 500
-        )
+
+@app.route("/usuarios/<int:id_usuario>/excluir", methods=["POST"])
+@tratar_erro_banco
+def excluir_usuario(id_usuario):
+    return excluir("usuario", "id_usuario", id_usuario, "listar_usuarios")
 
 
 # =====================================================
-# MORADORES - LISTAGEM
+# MORADORES
 # =====================================================
+
+CAMPOS_MORADOR = [
+    {"nome": "id_usuario", "rotulo": "Usuário vinculado", "tipo": "select",
+     "obrigatorio": True, "opcoes": []},
+    {"nome": "nome", "rotulo": "Nome", "obrigatorio": True, "maxlength": 100},
+    {"nome": "cpf", "rotulo": "CPF", "obrigatorio": True, "maxlength": 14},
+    {"nome": "telefone", "rotulo": "Telefone", "maxlength": 20},
+    {"nome": "email", "rotulo": "E-mail", "tipo": "email", "maxlength": 100},
+    {"nome": "endereco", "rotulo": "Endereço", "maxlength": 150},
+]
+
+
+def campos_morador(id_usuario_atual=0):
+    return preencher_opcoes(
+        CAMPOS_MORADOR,
+        id_usuario=opcoes_select(
+            "SELECT id_usuario, nome FROM usuario "
+            "WHERE perfil = 'Morador' OR id_usuario = %s ORDER BY nome",
+            "id_usuario", "nome", (id_usuario_atual,)
+        )
+    )
+
+
+def ler_morador():
+    id_usuario = ler_int("id_usuario")
+    nome, cpf = texto("nome"), texto("cpf")
+
+    if id_usuario is None:
+        return None, "Selecione um usuário válido."
+    if not nome or not cpf:
+        return None, "Informe o nome e o CPF."
+
+    return (id_usuario, nome, cpf,
+            texto("telefone") or None,
+            texto("email") or None,
+            texto("endereco") or None), None
+
 
 @app.route("/moradores")
 def listar_moradores():
@@ -432,9 +565,66 @@ def listar_moradores():
             ("CPF", "cpf"),
             ("Telefone", "telefone"),
             ("E-mail", "email"),
-            ("Endereço", "endereco")
-        ]
+            ("Endereço", "endereco"),
+        ],
+        acoes=("/moradores", "id_morador")
     )
+
+
+@app.route("/moradores/novo", methods=["GET", "POST"])
+@tratar_erro_banco
+def cadastrar_morador():
+    if request.method == "GET":
+        return formulario_html(
+            "Cadastrar morador", "/moradores/novo", campos_morador()
+        )
+
+    dados, aviso = ler_morador()
+    if aviso:
+        return erro_formulario(aviso)
+
+    return salvar(
+        "INSERT INTO morador (id_usuario, nome, cpf, telefone, email, endereco) "
+        "VALUES (%s, %s, %s, %s, %s, %s)",
+        dados, "listar_moradores", "Não foi possível cadastrar o morador."
+    )
+
+
+@app.route("/moradores/<int:id_morador>/editar", methods=["GET", "POST"])
+@tratar_erro_banco
+def editar_morador(id_morador):
+    registro = buscar_um(
+        "SELECT * FROM morador WHERE id_morador = %s", (id_morador,)
+    )
+    if not registro:
+        return erro_formulario("Morador não encontrado.", 404)
+
+    if request.method == "GET":
+        return formulario_html(
+            "Editar morador", f"/moradores/{id_morador}/editar",
+            campos_morador(registro["id_usuario"]), registro
+        )
+
+    dados, aviso = ler_morador()
+    if aviso:
+        return erro_formulario(aviso)
+
+    return salvar(
+        """
+        UPDATE morador
+        SET id_usuario = %s, nome = %s, cpf = %s,
+            telefone = %s, email = %s, endereco = %s
+        WHERE id_morador = %s
+        """,
+        dados + (id_morador,), "listar_moradores",
+        "Não foi possível atualizar o morador."
+    )
+
+
+@app.route("/moradores/<int:id_morador>/excluir", methods=["POST"])
+@tratar_erro_banco
+def excluir_morador(id_morador):
+    return excluir("morador", "id_morador", id_morador, "listar_moradores")
 
 
 # =====================================================
@@ -442,17 +632,9 @@ def listar_moradores():
 # =====================================================
 
 CAMPOS_SETOR = [
-    {
-        "nome": "nome_setor",
-        "rotulo": "Nome do setor",
-        "obrigatorio": True,
-        "maxlength": 100
-    },
-    {
-        "nome": "responsavel",
-        "rotulo": "Responsável",
-        "maxlength": 100
-    }
+    {"nome": "nome_setor", "rotulo": "Nome do setor",
+     "obrigatorio": True, "maxlength": 100},
+    {"nome": "responsavel", "rotulo": "Responsável", "maxlength": 100},
 ]
 
 
@@ -460,51 +642,112 @@ CAMPOS_SETOR = [
 def listar_setores():
     return listar_dados(
         "Setores cadastrados",
-        """
-        SELECT id_setor, nome_setor, responsavel
-        FROM setor ORDER BY id_setor
-        """,
+        "SELECT id_setor, nome_setor, responsavel FROM setor ORDER BY id_setor",
         [
             ("ID", "id_setor"),
             ("Nome do setor", "nome_setor"),
-            ("Responsável", "responsavel")
-        ]
+            ("Responsável", "responsavel"),
+        ],
+        acoes=("/setores", "id_setor")
     )
 
 
 @app.route("/setores/novo", methods=["GET", "POST"])
+@tratar_erro_banco
 def cadastrar_setor():
     if request.method == "GET":
-        return formulario_html(
-            "Cadastrar setor", "/setores/novo", CAMPOS_SETOR
-        )
+        return formulario_html("Cadastrar setor", "/setores/novo", CAMPOS_SETOR)
 
-    nome = request.form.get("nome_setor", "").strip()
-    responsavel = request.form.get("responsavel", "").strip()
+    nome = texto("nome_setor")
+    responsavel = texto("responsavel")
 
     if not nome:
         return erro_formulario("Informe o nome do setor.")
 
-    try:
-        executar_sql(
-            """
-            INSERT INTO setor (nome_setor, responsavel)
-            VALUES (%s, %s)
-            """,
-            (nome, responsavel or None)
+    return salvar(
+        "INSERT INTO setor (nome_setor, responsavel) VALUES (%s, %s)",
+        (nome, responsavel or None),
+        "listar_setores", "Não foi possível cadastrar o setor."
+    )
+
+
+@app.route("/setores/<int:id_setor>/editar", methods=["GET", "POST"])
+@tratar_erro_banco
+def editar_setor(id_setor):
+    registro = buscar_um(
+        "SELECT * FROM setor WHERE id_setor = %s", (id_setor,)
+    )
+    if not registro:
+        return erro_formulario("Setor não encontrado.", 404)
+
+    if request.method == "GET":
+        return formulario_html(
+            "Editar setor", f"/setores/{id_setor}/editar",
+            CAMPOS_SETOR, registro
         )
 
-        return redirect(url_for("listar_setores"))
+    nome = texto("nome_setor")
+    responsavel = texto("responsavel")
 
-    except mysql.connector.Error:
-        return erro_formulario(
-            "Não foi possível cadastrar o setor.", 500
-        )
+    if not nome:
+        return erro_formulario("Informe o nome do setor.")
+
+    return salvar(
+        "UPDATE setor SET nome_setor = %s, responsavel = %s WHERE id_setor = %s",
+        (nome, responsavel or None, id_setor),
+        "listar_setores", "Não foi possível atualizar o setor."
+    )
+
+
+@app.route("/setores/<int:id_setor>/excluir", methods=["POST"])
+@tratar_erro_banco
+def excluir_setor(id_setor):
+    return excluir("setor", "id_setor", id_setor, "listar_setores")
 
 
 # =====================================================
-# FUNCIONARIOS - LISTAGEM
+# FUNCIONARIOS
 # =====================================================
+
+CAMPOS_FUNCIONARIO = [
+    {"nome": "id_usuario", "rotulo": "Usuário vinculado", "tipo": "select",
+     "obrigatorio": True, "opcoes": []},
+    {"nome": "id_setor", "rotulo": "Setor", "tipo": "select",
+     "obrigatorio": True, "opcoes": []},
+    {"nome": "nome", "rotulo": "Nome", "obrigatorio": True, "maxlength": 100},
+    {"nome": "matricula", "rotulo": "Matrícula",
+     "obrigatorio": True, "maxlength": 20},
+    {"nome": "cargo", "rotulo": "Cargo", "maxlength": 50},
+]
+
+
+def campos_funcionario(id_usuario_atual=0):
+    return preencher_opcoes(
+        CAMPOS_FUNCIONARIO,
+        id_usuario=opcoes_select(
+            "SELECT id_usuario, nome FROM usuario "
+            "WHERE perfil <> 'Morador' OR id_usuario = %s ORDER BY nome",
+            "id_usuario", "nome", (id_usuario_atual,)
+        ),
+        id_setor=opcoes_select(
+            "SELECT id_setor, nome_setor FROM setor ORDER BY nome_setor",
+            "id_setor", "nome_setor"
+        )
+    )
+
+
+def ler_funcionario():
+    id_usuario, id_setor = ler_int("id_usuario"), ler_int("id_setor")
+    nome, matricula = texto("nome"), texto("matricula")
+
+    if id_usuario is None or id_setor is None:
+        return None, "Selecione um usuário e um setor válidos."
+    if not nome or not matricula:
+        return None, "Informe o nome e a matrícula."
+
+    return (id_usuario, id_setor, nome, matricula,
+            texto("cargo") or None), None
+
 
 @app.route("/funcionarios")
 def listar_funcionarios():
@@ -522,9 +765,66 @@ def listar_funcionarios():
             ("Nome", "nome"),
             ("Matrícula", "matricula"),
             ("Cargo", "cargo"),
-            ("Setor", "setor")
-        ]
+            ("Setor", "setor"),
+        ],
+        acoes=("/funcionarios", "id_funcionario")
     )
+
+
+@app.route("/funcionarios/novo", methods=["GET", "POST"])
+@tratar_erro_banco
+def cadastrar_funcionario():
+    if request.method == "GET":
+        return formulario_html(
+            "Cadastrar funcionário", "/funcionarios/novo",
+            campos_funcionario()
+        )
+
+    dados, aviso = ler_funcionario()
+    if aviso:
+        return erro_formulario(aviso)
+
+    return salvar(
+        "INSERT INTO funcionario (id_usuario, id_setor, nome, matricula, cargo) "
+        "VALUES (%s, %s, %s, %s, %s)",
+        dados, "listar_funcionarios",
+        "Não foi possível cadastrar o funcionário."
+    )
+
+
+@app.route("/funcionarios/<int:id_funcionario>/editar", methods=["GET", "POST"])
+@tratar_erro_banco
+def editar_funcionario(id_funcionario):
+    registro = buscar_um(
+        "SELECT * FROM funcionario WHERE id_funcionario = %s",
+        (id_funcionario,)
+    )
+    if not registro:
+        return erro_formulario("Funcionário não encontrado.", 404)
+
+    if request.method == "GET":
+        return formulario_html(
+            "Editar funcionário", f"/funcionarios/{id_funcionario}/editar",
+            campos_funcionario(registro["id_usuario"]), registro
+        )
+
+    dados, aviso = ler_funcionario()
+    if aviso:
+        return erro_formulario(aviso)
+
+    return salvar(
+        "UPDATE funcionario SET id_usuario = %s, id_setor = %s, nome = %s, "
+        "matricula = %s, cargo = %s WHERE id_funcionario = %s",
+        dados + (id_funcionario,), "listar_funcionarios",
+        "Não foi possível atualizar o funcionário."
+    )
+
+
+@app.route("/funcionarios/<int:id_funcionario>/excluir", methods=["POST"])
+@tratar_erro_banco
+def excluir_funcionario(id_funcionario):
+    return excluir("funcionario", "id_funcionario",
+                   id_funcionario, "listar_funcionarios")
 
 
 # =====================================================
@@ -532,17 +832,9 @@ def listar_funcionarios():
 # =====================================================
 
 CAMPOS_CATEGORIA = [
-    {
-        "nome": "nome_categoria",
-        "rotulo": "Nome da categoria",
-        "obrigatorio": True,
-        "maxlength": 50
-    },
-    {
-        "nome": "descricao",
-        "rotulo": "Descrição",
-        "tipo": "textarea"
-    }
+    {"nome": "nome_categoria", "rotulo": "Nome da categoria",
+     "obrigatorio": True, "maxlength": 50},
+    {"nome": "descricao", "rotulo": "Descrição", "tipo": "textarea"},
 ]
 
 
@@ -550,115 +842,142 @@ CAMPOS_CATEGORIA = [
 def listar_categorias():
     return listar_dados(
         "Categorias cadastradas",
-        """
-        SELECT id_categoria, nome_categoria, descricao
-        FROM categoria ORDER BY id_categoria
-        """,
+        "SELECT id_categoria, nome_categoria, descricao "
+        "FROM categoria ORDER BY id_categoria",
         [
             ("ID", "id_categoria"),
             ("Categoria", "nome_categoria"),
-            ("Descrição", "descricao")
-        ]
+            ("Descrição", "descricao"),
+        ],
+        acoes=("/categorias", "id_categoria")
     )
 
 
 @app.route("/categorias/novo", methods=["GET", "POST"])
+@tratar_erro_banco
 def cadastrar_categoria():
     if request.method == "GET":
         return formulario_html(
-            "Cadastrar categoria",
-            "/categorias/novo",
-            CAMPOS_CATEGORIA
+            "Cadastrar categoria", "/categorias/novo", CAMPOS_CATEGORIA
         )
 
-    nome = request.form.get("nome_categoria", "").strip()
-    descricao = request.form.get("descricao", "").strip()
+    nome = texto("nome_categoria")
+    descricao = texto("descricao")
 
     if not nome:
-        return erro_formulario(
-            "Informe o nome da categoria."
+        return erro_formulario("Informe o nome da categoria.")
+
+    return salvar(
+        "INSERT INTO categoria (nome_categoria, descricao) VALUES (%s, %s)",
+        (nome, descricao or None),
+        "listar_categorias", "Não foi possível cadastrar a categoria."
+    )
+
+
+@app.route("/categorias/<int:id_categoria>/editar", methods=["GET", "POST"])
+@tratar_erro_banco
+def editar_categoria(id_categoria):
+    registro = buscar_um(
+        "SELECT * FROM categoria WHERE id_categoria = %s", (id_categoria,)
+    )
+    if not registro:
+        return erro_formulario("Categoria não encontrada.", 404)
+
+    if request.method == "GET":
+        return formulario_html(
+            "Editar categoria", f"/categorias/{id_categoria}/editar",
+            CAMPOS_CATEGORIA, registro
         )
 
-    try:
-        executar_sql(
-            """
-            INSERT INTO categoria (nome_categoria, descricao)
-            VALUES (%s, %s)
-            """,
-            (nome, descricao or None)
-        )
+    nome = texto("nome_categoria")
+    descricao = texto("descricao")
 
-        return redirect(url_for("listar_categorias"))
+    if not nome:
+        return erro_formulario("Informe o nome da categoria.")
 
-    except mysql.connector.Error:
-        return erro_formulario(
-            "Não foi possível cadastrar a categoria.", 500
-        )
+    return salvar(
+        "UPDATE categoria SET nome_categoria = %s, descricao = %s "
+        "WHERE id_categoria = %s",
+        (nome, descricao or None, id_categoria),
+        "listar_categorias", "Não foi possível atualizar a categoria."
+    )
+
+
+@app.route("/categorias/<int:id_categoria>/excluir", methods=["POST"])
+@tratar_erro_banco
+def excluir_categoria(id_categoria):
+    return excluir("categoria", "id_categoria",
+                   id_categoria, "listar_categorias")
+
+# ===== INICIO DA PARTE 2 =====
+
+
 # =====================================================
-# SOLICITACOES - LISTAGEM E CADASTRO
+# SOLICITACOES
 # =====================================================
+
+STATUS_VALIDOS = [
+    "Recebida", "Em Análise", "Encaminhada",
+    "Em Execução", "Concluída", "Cancelada"
+]
 
 CAMPOS_SOLICITACAO = [
-    {
-        "nome": "id_morador",
-        "rotulo": "Morador",
-        "tipo": "select",
-        "obrigatorio": True,
-        "opcoes": []
-    },
-    {
-        "nome": "id_categoria",
-        "rotulo": "Categoria",
-        "tipo": "select",
-        "obrigatorio": True,
-        "opcoes": []
-    },
-    {
-        "nome": "id_setor",
-        "rotulo": "Setor",
-        "tipo": "select",
-        "obrigatorio": True,
-        "opcoes": []
-    },
-    {
-        "nome": "protocolo",
-        "rotulo": "Protocolo",
-        "obrigatorio": True,
-        "maxlength": 20
-    },
-    {
-        "nome": "descricao",
-        "rotulo": "Descrição",
-        "tipo": "textarea",
-        "obrigatorio": True
-    },
-    {
-        "nome": "localizacao",
-        "rotulo": "Localização",
-        "obrigatorio": True,
-        "maxlength": 150
-    },
-    {
-        "nome": "data_registro",
-        "rotulo": "Data do registro",
-        "tipo": "date",
-        "obrigatorio": True
-    },
-    {
-        "nome": "status",
-        "rotulo": "Status",
-        "tipo": "select",
-        "obrigatorio": True,
-        "opcoes": [
-            ("Recebida", "Recebida"),
-            ("Em Análise", "Em Análise"),
-            ("Encaminhada", "Encaminhada"),
-            ("Em Execução", "Em Execução"),
-            ("Concluída", "Concluída"),
-            ("Cancelada", "Cancelada")
-        ]
-    }
+    {"nome": "id_morador", "rotulo": "Morador", "tipo": "select",
+     "obrigatorio": True, "opcoes": []},
+    {"nome": "id_categoria", "rotulo": "Categoria", "tipo": "select",
+     "obrigatorio": True, "opcoes": []},
+    {"nome": "id_setor", "rotulo": "Setor", "tipo": "select",
+     "obrigatorio": True, "opcoes": []},
+    {"nome": "protocolo", "rotulo": "Protocolo",
+     "obrigatorio": True, "maxlength": 20},
+    {"nome": "descricao", "rotulo": "Descrição",
+     "tipo": "textarea", "obrigatorio": True},
+    {"nome": "localizacao", "rotulo": "Localização",
+     "obrigatorio": True, "maxlength": 150},
+    {"nome": "data_registro", "rotulo": "Data do registro",
+     "tipo": "date", "obrigatorio": True},
+    {"nome": "status", "rotulo": "Status", "tipo": "select",
+     "obrigatorio": True,
+     "opcoes": [(s, s) for s in STATUS_VALIDOS]},
 ]
+
+
+def campos_solicitacao():
+    return preencher_opcoes(
+        CAMPOS_SOLICITACAO,
+        id_morador=opcoes_select(
+            "SELECT id_morador, nome FROM morador ORDER BY nome",
+            "id_morador", "nome"
+        ),
+        id_categoria=opcoes_select(
+            "SELECT id_categoria, nome_categoria FROM categoria "
+            "ORDER BY nome_categoria",
+            "id_categoria", "nome_categoria"
+        ),
+        id_setor=opcoes_select(
+            "SELECT id_setor, nome_setor FROM setor ORDER BY nome_setor",
+            "id_setor", "nome_setor"
+        ),
+    )
+
+
+def ler_solicitacao():
+    ids = (ler_int("id_morador"), ler_int("id_categoria"), ler_int("id_setor"))
+    if None in ids:
+        return None, "Selecione um morador, uma categoria e um setor válidos."
+
+    protocolo = texto("protocolo")
+    descricao = texto("descricao")
+    localizacao = texto("localizacao")
+    data_registro = texto("data_registro")
+    status = texto("status")
+
+    if not all([protocolo, descricao, localizacao, data_registro, status]):
+        return None, "Preencha todos os campos obrigatórios."
+    if status not in STATUS_VALIDOS:
+        return None, "Status inválido."
+
+    return ids + (protocolo, descricao, localizacao, data_registro, status), None
 
 
 @app.route("/solicitacoes")
@@ -677,12 +996,9 @@ def listar_solicitacoes():
             so.data_registro,
             so.status
         FROM solicitacao so
-        INNER JOIN morador m
-            ON so.id_morador = m.id_morador
-        INNER JOIN categoria c
-            ON so.id_categoria = c.id_categoria
-        INNER JOIN setor se
-            ON so.id_setor = se.id_setor
+        INNER JOIN morador m ON so.id_morador = m.id_morador
+        INNER JOIN categoria c ON so.id_categoria = c.id_categoria
+        INNER JOIN setor se ON so.id_setor = se.id_setor
         ORDER BY so.id_solicitacao
         """,
         [
@@ -694,205 +1010,128 @@ def listar_solicitacoes():
             ("Descrição", "descricao"),
             ("Localização", "localizacao"),
             ("Data", "data_registro"),
-            ("Status", "status")
-        ]
+            ("Status", "status"),
+        ],
+        acoes=("/solicitacoes", "id_solicitacao")
     )
 
 
 @app.route("/solicitacoes/novo", methods=["GET", "POST"])
+@tratar_erro_banco
 def cadastrar_solicitacao():
     if request.method == "GET":
-        try:
-            moradores = consultar_sql(
-                """
-                SELECT id_morador, nome
-                FROM morador
-                ORDER BY nome
-                """
-            )
-
-            categorias = consultar_sql(
-                """
-                SELECT id_categoria, nome_categoria
-                FROM categoria
-                ORDER BY nome_categoria
-                """
-            )
-
-            setores = consultar_sql(
-                """
-                SELECT id_setor, nome_setor
-                FROM setor
-                ORDER BY nome_setor
-                """
-            )
-
-            campos = [dict(c) for c in CAMPOS_SOLICITACAO]
-
-            campos[0]["opcoes"] = [
-                (m["id_morador"], m["nome"])
-                for m in moradores
-            ]
-
-            campos[1]["opcoes"] = [
-                (c["id_categoria"], c["nome_categoria"])
-                for c in categorias
-            ]
-
-            campos[2]["opcoes"] = [
-                (s["id_setor"], s["nome_setor"])
-                for s in setores
-            ]
-
-            return formulario_html(
-                "Cadastrar solicitação",
-                "/solicitacoes/novo",
-                campos
-            )
-
-        except mysql.connector.Error:
-            return erro_formulario(
-                "Erro ao carregar moradores, categorias ou setores.",
-                500
-            )
-
-    try:
-        id_morador = int(
-            request.form.get("id_morador", "")
-        )
-        id_categoria = int(
-            request.form.get("id_categoria", "")
-        )
-        id_setor = int(
-            request.form.get("id_setor", "")
+        return formulario_html(
+            "Cadastrar solicitação",
+            "/solicitacoes/novo",
+            campos_solicitacao()
         )
 
-    except (ValueError, TypeError):
-        return erro_formulario(
-            "Selecione um morador, uma categoria e um setor válidos."
+    dados, aviso = ler_solicitacao()
+    if aviso:
+        return erro_formulario(aviso)
+
+    return salvar(
+        """
+        INSERT INTO solicitacao (
+            id_morador, id_categoria, id_setor,
+            protocolo, descricao, localizacao, data_registro, status
+        )
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        """,
+        dados, "listar_solicitacoes",
+        "Não foi possível cadastrar a solicitação."
+    )
+
+
+@app.route("/solicitacoes/<int:id_solicitacao>/editar", methods=["GET", "POST"])
+@tratar_erro_banco
+def editar_solicitacao(id_solicitacao):
+    registro = buscar_um(
+        "SELECT * FROM solicitacao WHERE id_solicitacao = %s",
+        (id_solicitacao,)
+    )
+    if not registro:
+        return erro_formulario("Solicitação não encontrada.", 404)
+
+    if request.method == "GET":
+        return formulario_html(
+            "Editar solicitação", f"/solicitacoes/{id_solicitacao}/editar",
+            campos_solicitacao(), registro
         )
 
-    protocolo = request.form.get(
-        "protocolo", ""
-    ).strip()
+    dados, aviso = ler_solicitacao()
+    if aviso:
+        return erro_formulario(aviso)
 
-    descricao = request.form.get(
-        "descricao", ""
-    ).strip()
+    return salvar(
+        """
+        UPDATE solicitacao
+        SET id_morador = %s, id_categoria = %s, id_setor = %s,
+            protocolo = %s, descricao = %s, localizacao = %s,
+            data_registro = %s, status = %s
+        WHERE id_solicitacao = %s
+        """,
+        dados + (id_solicitacao,), "listar_solicitacoes",
+        "Não foi possível atualizar a solicitação."
+    )
 
-    localizacao = request.form.get(
-        "localizacao", ""
-    ).strip()
 
-    data_registro = request.form.get(
-        "data_registro", ""
-    ).strip()
+@app.route("/solicitacoes/<int:id_solicitacao>/excluir", methods=["POST"])
+@tratar_erro_banco
+def excluir_solicitacao(id_solicitacao):
+    return excluir("solicitacao", "id_solicitacao",
+                   id_solicitacao, "listar_solicitacoes")
 
-    status = request.form.get(
-        "status", ""
-    ).strip()
 
-    if not all([
-        protocolo,
-        descricao,
-        localizacao,
-        data_registro,
-        status
-    ]):
-        return erro_formulario(
-            "Preencha todos os campos obrigatórios."
-        )
-
-    if status not in [
-        "Recebida",
-        "Em Análise",
-        "Encaminhada",
-        "Em Execução",
-        "Concluída",
-        "Cancelada"
-    ]:
-        return erro_formulario("Status inválido.")
-
-    try:
-        executar_sql(
-            """
-            INSERT INTO solicitacao (
-                id_morador,
-                id_categoria,
-                id_setor,
-                protocolo,
-                descricao,
-                localizacao,
-                data_registro,
-                status
-            )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-            """,
-            (
-                id_morador,
-                id_categoria,
-                id_setor,
-                protocolo,
-                descricao,
-                localizacao,
-                data_registro,
-                status
-            )
-        )
-
-        return redirect(
-            url_for("listar_solicitacoes")
-        )
-
-    except mysql.connector.Error:
-        return erro_formulario(
-            "Não foi possível cadastrar a solicitação. "
-            "Confira se o morador, a categoria e o setor existem.",
-            500
-        )
 # =====================================================
-# HISTORICO - LISTAGEM E CADASTRO
+# HISTORICO
 # =====================================================
 
 CAMPOS_HISTORICO = [
-    {
-        "nome": "id_solicitacao",
-        "rotulo": "Solicitação",
-        "tipo": "select",
-        "obrigatorio": True,
-        "opcoes": []
-    },
-    {
-        "nome": "id_funcionario",
-        "rotulo": "Funcionário",
-        "tipo": "select",
-        "obrigatorio": True,
-        "opcoes": []
-    },
-    {
-        "nome": "status_anterior",
-        "rotulo": "Status anterior",
-        "obrigatorio": True,
-        "maxlength": 30
-    },
-    {
-        "nome": "novo_status",
-        "rotulo": "Novo status",
-        "obrigatorio": True,
-        "maxlength": 30
-    },
-    {
-        "nome": "data_alteracao",
-        "rotulo": "Data da alteração",
-        "tipo": "date",
-        "obrigatorio": True
-    },
-    {
-        "nome": "observacao",
-        "rotulo": "Observação",
-        "tipo": "textarea"
-    }
+    {"nome": "id_solicitacao", "rotulo": "Solicitação", "tipo": "select",
+     "obrigatorio": True, "opcoes": []},
+    {"nome": "id_funcionario", "rotulo": "Funcionário", "tipo": "select",
+     "obrigatorio": True, "opcoes": []},
+    {"nome": "status_anterior", "rotulo": "Status anterior",
+     "obrigatorio": True, "maxlength": 30},
+    {"nome": "novo_status", "rotulo": "Novo status",
+     "obrigatorio": True, "maxlength": 30},
+    {"nome": "data_alteracao", "rotulo": "Data da alteração",
+     "tipo": "date", "obrigatorio": True},
+    {"nome": "observacao", "rotulo": "Observação", "tipo": "textarea"},
 ]
+
+
+def campos_historico():
+    return preencher_opcoes(
+        CAMPOS_HISTORICO,
+        id_solicitacao=opcoes_select(
+            "SELECT id_solicitacao, protocolo FROM solicitacao "
+            "ORDER BY id_solicitacao",
+            "id_solicitacao", "protocolo"
+        ),
+        id_funcionario=opcoes_select(
+            "SELECT id_funcionario, nome FROM funcionario ORDER BY nome",
+            "id_funcionario", "nome"
+        ),
+    )
+
+
+def ler_historico():
+    id_solicitacao = ler_int("id_solicitacao")
+    id_funcionario = ler_int("id_funcionario")
+    if id_solicitacao is None or id_funcionario is None:
+        return None, "Selecione uma solicitação e um funcionário válidos."
+
+    anterior = texto("status_anterior")
+    novo = texto("novo_status")
+    data = texto("data_alteracao")
+
+    if not anterior or not novo or not data:
+        return None, "Preencha os campos obrigatórios."
+
+    return (id_solicitacao, id_funcionario, anterior, novo, data,
+            texto("observacao") or None), None
 
 
 @app.route("/historico")
@@ -909,10 +1148,8 @@ def listar_historico():
             h.data_alteracao,
             h.observacao
         FROM historico h
-        INNER JOIN solicitacao so
-            ON h.id_solicitacao = so.id_solicitacao
-        INNER JOIN funcionario f
-            ON h.id_funcionario = f.id_funcionario
+        INNER JOIN solicitacao so ON h.id_solicitacao = so.id_solicitacao
+        INNER JOIN funcionario f ON h.id_funcionario = f.id_funcionario
         ORDER BY h.id_historico
         """,
         [
@@ -922,172 +1159,126 @@ def listar_historico():
             ("Status anterior", "status_anterior"),
             ("Novo status", "novo_status"),
             ("Data", "data_alteracao"),
-            ("Observação", "observacao")
-        ]
+            ("Observação", "observacao"),
+        ],
+        acoes=("/historico", "id_historico")
     )
 
 
 @app.route("/historico/novo", methods=["GET", "POST"])
+@tratar_erro_banco
 def cadastrar_historico():
     if request.method == "GET":
-        try:
-            solicitacoes = consultar_sql(
-                """
-                SELECT id_solicitacao, protocolo
-                FROM solicitacao
-                ORDER BY id_solicitacao
-                """
-            )
-
-            funcionarios = consultar_sql(
-                """
-                SELECT id_funcionario, nome
-                FROM funcionario
-                ORDER BY nome
-                """
-            )
-
-            campos = [dict(c) for c in CAMPOS_HISTORICO]
-
-            campos[0]["opcoes"] = [
-                (s["id_solicitacao"], s["protocolo"])
-                for s in solicitacoes
-            ]
-
-            campos[1]["opcoes"] = [
-                (f["id_funcionario"], f["nome"])
-                for f in funcionarios
-            ]
-
-            return formulario_html(
-                "Cadastrar histórico",
-                "/historico/novo",
-                campos
-            )
-
-        except mysql.connector.Error:
-            return erro_formulario(
-                "Erro ao carregar solicitações e funcionários.",
-                500
-            )
-
-    try:
-        id_solicitacao = int(
-            request.form.get("id_solicitacao", "")
-        )
-        id_funcionario = int(
-            request.form.get("id_funcionario", "")
-        )
-    except (ValueError, TypeError):
-        return erro_formulario(
-            "Selecione uma solicitação e um funcionário válidos."
+        return formulario_html(
+            "Cadastrar histórico", "/historico/novo", campos_historico()
         )
 
-    anterior = request.form.get(
-        "status_anterior", ""
-    ).strip()
+    dados, aviso = ler_historico()
+    if aviso:
+        return erro_formulario(aviso)
 
-    novo = request.form.get(
-        "novo_status", ""
-    ).strip()
+    return salvar(
+        """
+        INSERT INTO historico (
+            id_solicitacao, id_funcionario,
+            status_anterior, novo_status, data_alteracao, observacao
+        )
+        VALUES (%s, %s, %s, %s, %s, %s)
+        """,
+        dados, "listar_historico",
+        "Não foi possível cadastrar o histórico."
+    )
 
-    data = request.form.get(
-        "data_alteracao", ""
-    ).strip()
 
-    observacao = request.form.get(
-        "observacao", ""
-    ).strip()
+@app.route("/historico/<int:id_historico>/editar", methods=["GET", "POST"])
+@tratar_erro_banco
+def editar_historico(id_historico):
+    registro = buscar_um(
+        "SELECT * FROM historico WHERE id_historico = %s", (id_historico,)
+    )
+    if not registro:
+        return erro_formulario("Registro de histórico não encontrado.", 404)
 
-    if not anterior or not novo or not data:
-        return erro_formulario(
-            "Preencha os campos obrigatórios."
+    if request.method == "GET":
+        return formulario_html(
+            "Editar histórico", f"/historico/{id_historico}/editar",
+            campos_historico(), registro
         )
 
-    try:
-        executar_sql(
-            """
-            INSERT INTO historico (
-                id_solicitacao,
-                id_funcionario,
-                status_anterior,
-                novo_status,
-                data_alteracao,
-                observacao
-            )
-            VALUES (%s, %s, %s, %s, %s, %s)
-            """,
-            (
-                id_solicitacao,
-                id_funcionario,
-                anterior,
-                novo,
-                data,
-                observacao or None
-            )
-        )
+    dados, aviso = ler_historico()
+    if aviso:
+        return erro_formulario(aviso)
 
-        return redirect(url_for("listar_historico"))
+    return salvar(
+        """
+        UPDATE historico
+        SET id_solicitacao = %s, id_funcionario = %s,
+            status_anterior = %s, novo_status = %s,
+            data_alteracao = %s, observacao = %s
+        WHERE id_historico = %s
+        """,
+        dados + (id_historico,), "listar_historico",
+        "Não foi possível atualizar o histórico."
+    )
 
-    except mysql.connector.Error:
-        return erro_formulario(
-            "Não foi possível cadastrar o histórico. "
-            "Confira se a solicitação e o funcionário existem.",
-            500
-        )
+
+@app.route("/historico/<int:id_historico>/excluir", methods=["POST"])
+@tratar_erro_banco
+def excluir_historico(id_historico):
+    return excluir("historico", "id_historico",
+                   id_historico, "listar_historico")
+
+
+# ===== FIM DA PARTE 2 =====# ===== INICIO DA PARTE 3 =====
 
 
 # =====================================================
-# PRODUTOS - LISTAGEM E CADASTRO
+# PRODUTOS
 # =====================================================
 
 CAMPOS_PRODUTO = [
-    {
-        "nome": "nome",
-        "rotulo": "Nome do produto",
-        "obrigatorio": True,
-        "maxlength": 150
-    },
-    {
-        "nome": "descricao",
-        "rotulo": "Descrição",
-        "tipo": "textarea"
-    },
-    {
-        "nome": "preco",
-        "rotulo": "Preço",
-        "tipo": "number",
-        "obrigatorio": True,
-        "valor": "0.00"
-    },
-    {
-        "nome": "quantidade",
-        "rotulo": "Quantidade",
-        "tipo": "number",
-        "obrigatorio": True,
-        "valor": "0"
-    },
-    {
-        "nome": "categoria",
-        "rotulo": "Categoria",
-        "maxlength": 100
-    },
-    {
-        "nome": "imagem",
-        "rotulo": "Caminho ou URL da imagem",
-        "maxlength": 255
-    },
-    {
-        "nome": "status",
-        "rotulo": "Status",
-        "tipo": "select",
-        "obrigatorio": True,
-        "opcoes": [
-            ("ativo", "Ativo"),
-            ("inativo", "Inativo")
-        ]
-    }
+    {"nome": "nome", "rotulo": "Nome do produto",
+     "obrigatorio": True, "maxlength": 150},
+    {"nome": "descricao", "rotulo": "Descrição", "tipo": "textarea"},
+    {"nome": "preco", "rotulo": "Preço", "tipo": "number",
+     "obrigatorio": True, "valor": "0.00", "step": "0.01"},
+    {"nome": "quantidade", "rotulo": "Quantidade", "tipo": "number",
+     "obrigatorio": True, "valor": "0", "step": "1"},
+    {"nome": "categoria", "rotulo": "Categoria", "maxlength": 100},
+    {"nome": "imagem", "rotulo": "Caminho ou URL da imagem",
+     "maxlength": 255},
+    {"nome": "status", "rotulo": "Status", "tipo": "select",
+     "obrigatorio": True,
+     "opcoes": [("ativo", "Ativo"), ("inativo", "Inativo")]},
 ]
+
+
+def ler_produto():
+    nome = texto("nome")
+    if not nome:
+        return None, "Informe o nome do produto."
+
+    try:
+        preco = Decimal(request.form.get("preco", "0"))
+        quantidade = int(request.form.get("quantidade", "0"))
+        if not preco.is_finite() or preco < 0 or quantidade < 0:
+            raise ValueError
+    except (ValueError, InvalidOperation):
+        return None, "Informe um preço e uma quantidade válidos."
+
+    status = texto("status") or "ativo"
+    if status not in ("ativo", "inativo"):
+        return None, "Status inválido."
+
+    return (
+        nome,
+        texto("descricao") or None,
+        preco,
+        quantidade,
+        texto("categoria") or None,
+        texto("imagem") or None,
+        status,
+    ), None
 
 
 @app.route("/produtos")
@@ -1095,17 +1286,9 @@ def listar_produtos():
     return listar_dados(
         "Produtos cadastrados",
         """
-        SELECT
-            id,
-            nome,
-            descricao,
-            preco,
-            quantidade,
-            categoria,
-            status,
-            data_cadastro
-        FROM produtos
-        ORDER BY id
+        SELECT id, nome, descricao, preco, quantidade,
+               categoria, status, data_cadastro
+        FROM produtos ORDER BY id
         """,
         [
             ("ID", "id"),
@@ -1115,134 +1298,118 @@ def listar_produtos():
             ("Quantidade", "quantidade"),
             ("Categoria", "categoria"),
             ("Status", "status"),
-            ("Data de cadastro", "data_cadastro")
-        ]
+            ("Data de cadastro", "data_cadastro"),
+        ],
+        acoes=("/produtos", "id")
     )
 
 
 @app.route("/produtos/novo", methods=["GET", "POST"])
+@tratar_erro_banco
 def cadastrar_produto():
     if request.method == "GET":
         return formulario_html(
-            "Cadastrar produto",
-            "/produtos/novo",
-            CAMPOS_PRODUTO
+            "Cadastrar produto", "/produtos/novo", CAMPOS_PRODUTO
         )
 
-    nome = request.form.get("nome", "").strip()
-    descricao = request.form.get("descricao", "").strip()
-    categoria = request.form.get("categoria", "").strip()
-    imagem = request.form.get("imagem", "").strip()
-    status = request.form.get("status", "ativo")
+    dados, aviso = ler_produto()
+    if aviso:
+        return erro_formulario(aviso)
 
-    try:
-        preco = Decimal(
-            request.form.get("preco", "0")
+    return salvar(
+        """
+        INSERT INTO produtos (
+            nome, descricao, preco, quantidade,
+            categoria, imagem, status
         )
-        quantidade = int(
-            request.form.get("quantidade", "0")
-        )
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """,
+        dados, "listar_produtos", "Não foi possível cadastrar o produto."
+    )
 
-        if (
-            not preco.is_finite()
-            or preco < 0
-            or quantidade < 0
-        ):
-            raise ValueError
 
-    except (ValueError, InvalidOperation):
-        return erro_formulario(
-            "Informe um preço e uma quantidade válidos."
-        )
+@app.route("/produtos/<int:id_produto>/editar", methods=["GET", "POST"])
+@tratar_erro_banco
+def editar_produto(id_produto):
+    registro = buscar_um(
+        "SELECT * FROM produtos WHERE id = %s", (id_produto,)
+    )
+    if not registro:
+        return erro_formulario("Produto não encontrado.", 404)
 
-    if not nome:
-        return erro_formulario(
-            "Informe o nome do produto."
-        )
-
-    if status not in ("ativo", "inativo"):
-        return erro_formulario("Status inválido.")
-
-    try:
-        executar_sql(
-            """
-            INSERT INTO produtos (
-                nome,
-                descricao,
-                preco,
-                quantidade,
-                categoria,
-                imagem,
-                status
-            )
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
-            """,
-            (
-                nome,
-                descricao or None,
-                preco,
-                quantidade,
-                categoria or None,
-                imagem or None,
-                status
-            )
+    if request.method == "GET":
+        return formulario_html(
+            "Editar produto", f"/produtos/{id_produto}/editar",
+            CAMPOS_PRODUTO, registro
         )
 
-        return redirect(url_for("listar_produtos"))
+    dados, aviso = ler_produto()
+    if aviso:
+        return erro_formulario(aviso)
 
-    except mysql.connector.Error:
-        return erro_formulario(
-            "Não foi possível cadastrar o produto.",
-            500
-        )
+    return salvar(
+        """
+        UPDATE produtos
+        SET nome = %s, descricao = %s, preco = %s, quantidade = %s,
+            categoria = %s, imagem = %s, status = %s
+        WHERE id = %s
+        """,
+        dados + (id_produto,), "listar_produtos",
+        "Não foi possível atualizar o produto."
+    )
+
+
+@app.route("/produtos/<int:id_produto>/excluir", methods=["POST"])
+@tratar_erro_banco
+def excluir_produto(id_produto):
+    return excluir("produtos", "id", id_produto, "listar_produtos")
 
 
 # =====================================================
-# MENSAGENS - LISTAGEM E CADASTRO
+# MENSAGENS
 # =====================================================
 
 CAMPOS_MENSAGEM = [
-    {
-        "nome": "nome_remetente",
-        "rotulo": "Nome do remetente",
-        "obrigatorio": True,
-        "maxlength": 150
-    },
-    {
-        "nome": "email_remetente",
-        "rotulo": "E-mail do remetente",
-        "tipo": "email",
-        "maxlength": 180
-    },
-    {
-        "nome": "assunto",
-        "rotulo": "Assunto",
-        "obrigatorio": True,
-        "maxlength": 200
-    },
-    {
-        "nome": "mensagem",
-        "rotulo": "Mensagem",
-        "tipo": "textarea",
-        "obrigatorio": True
-    },
-    {
-        "nome": "resposta",
-        "rotulo": "Resposta",
-        "tipo": "textarea"
-    },
-    {
-        "nome": "status",
-        "rotulo": "Status",
-        "tipo": "select",
-        "obrigatorio": True,
-        "opcoes": [
-            ("não lida", "Não lida"),
-            ("lida", "Lida"),
-            ("respondida", "Respondida")
-        ]
-    }
+    {"nome": "nome_remetente", "rotulo": "Nome do remetente",
+     "obrigatorio": True, "maxlength": 150},
+    {"nome": "email_remetente", "rotulo": "E-mail do remetente",
+     "tipo": "email", "maxlength": 180},
+    {"nome": "assunto", "rotulo": "Assunto",
+     "obrigatorio": True, "maxlength": 200},
+    {"nome": "mensagem", "rotulo": "Mensagem",
+     "tipo": "textarea", "obrigatorio": True},
+    {"nome": "resposta", "rotulo": "Resposta", "tipo": "textarea"},
+    {"nome": "status", "rotulo": "Status", "tipo": "select",
+     "obrigatorio": True,
+     "opcoes": [
+         ("não lida", "Não lida"),
+         ("lida", "Lida"),
+         ("respondida", "Respondida"),
+     ]},
 ]
+
+STATUS_MENSAGEM = ("não lida", "lida", "respondida")
+
+
+def ler_mensagem():
+    nome = texto("nome_remetente")
+    assunto = texto("assunto")
+    mensagem = texto("mensagem")
+    status = texto("status") or "não lida"
+
+    if not nome or not assunto or not mensagem:
+        return None, "Preencha nome, assunto e mensagem."
+    if status not in STATUS_MENSAGEM:
+        return None, "Status inválido."
+
+    return (
+        nome,
+        texto("email_remetente") or None,
+        assunto,
+        mensagem,
+        texto("resposta") or None,
+        status,
+    ), None
 
 
 @app.route("/mensagens")
@@ -1250,17 +1417,9 @@ def listar_mensagens():
     return listar_dados(
         "Mensagens recebidas",
         """
-        SELECT
-            id,
-            nome_remetente,
-            email_remetente,
-            assunto,
-            mensagem,
-            resposta,
-            status,
-            data_envio
-        FROM mensagens
-        ORDER BY data_envio DESC
+        SELECT id, nome_remetente, email_remetente, assunto,
+               mensagem, resposta, status, data_envio
+        FROM mensagens ORDER BY data_envio DESC
         """,
         [
             ("ID", "id"),
@@ -1270,134 +1429,111 @@ def listar_mensagens():
             ("Mensagem", "mensagem"),
             ("Resposta", "resposta"),
             ("Status", "status"),
-            ("Data", "data_envio")
-        ]
+            ("Data", "data_envio"),
+        ],
+        acoes=("/mensagens", "id")
     )
 
 
 @app.route("/mensagens/novo", methods=["GET", "POST"])
+@tratar_erro_banco
 def cadastrar_mensagem():
     if request.method == "GET":
         return formulario_html(
-            "Cadastrar mensagem",
-            "/mensagens/novo",
-            CAMPOS_MENSAGEM
+            "Cadastrar mensagem", "/mensagens/novo", CAMPOS_MENSAGEM
         )
 
-    nome = request.form.get(
-        "nome_remetente", ""
-    ).strip()
+    dados, aviso = ler_mensagem()
+    if aviso:
+        return erro_formulario(aviso)
 
-    email = request.form.get(
-        "email_remetente", ""
-    ).strip()
-
-    assunto = request.form.get(
-        "assunto", ""
-    ).strip()
-
-    mensagem = request.form.get(
-        "mensagem", ""
-    ).strip()
-
-    resposta = request.form.get(
-        "resposta", ""
-    ).strip()
-
-    status = request.form.get(
-        "status", "não lida"
+    return salvar(
+        """
+        INSERT INTO mensagens (
+            nome_remetente, email_remetente, assunto,
+            mensagem, resposta, status
+        )
+        VALUES (%s, %s, %s, %s, %s, %s)
+        """,
+        dados, "listar_mensagens",
+        "Não foi possível cadastrar a mensagem."
     )
 
-    if not nome or not assunto or not mensagem:
-        return erro_formulario(
-            "Preencha nome, assunto e mensagem."
+
+@app.route("/mensagens/<int:id_mensagem>/editar", methods=["GET", "POST"])
+@tratar_erro_banco
+def editar_mensagem(id_mensagem):
+    registro = buscar_um(
+        "SELECT * FROM mensagens WHERE id = %s", (id_mensagem,)
+    )
+    if not registro:
+        return erro_formulario("Mensagem não encontrada.", 404)
+
+    if request.method == "GET":
+        return formulario_html(
+            "Editar mensagem", f"/mensagens/{id_mensagem}/editar",
+            CAMPOS_MENSAGEM, registro
         )
 
-    if status not in (
-        "não lida",
-        "lida",
-        "respondida"
-    ):
-        return erro_formulario("Status inválido.")
+    dados, aviso = ler_mensagem()
+    if aviso:
+        return erro_formulario(aviso)
 
-    try:
-        executar_sql(
-            """
-            INSERT INTO mensagens (
-                nome_remetente,
-                email_remetente,
-                assunto,
-                mensagem,
-                resposta,
-                status
-            )
-            VALUES (%s, %s, %s, %s, %s, %s)
-            """,
-            (
-                nome,
-                email or None,
-                assunto,
-                mensagem,
-                resposta or None,
-                status
-            )
-        )
+    return salvar(
+        """
+        UPDATE mensagens
+        SET nome_remetente = %s, email_remetente = %s, assunto = %s,
+            mensagem = %s, resposta = %s, status = %s
+        WHERE id = %s
+        """,
+        dados + (id_mensagem,), "listar_mensagens",
+        "Não foi possível atualizar a mensagem."
+    )
 
-        return redirect(url_for("listar_mensagens"))
 
-    except mysql.connector.Error:
-        return erro_formulario(
-            "Não foi possível cadastrar a mensagem.",
-            500
-        )
+@app.route("/mensagens/<int:id_mensagem>/excluir", methods=["POST"])
+@tratar_erro_banco
+def excluir_mensagem(id_mensagem):
+    return excluir("mensagens", "id", id_mensagem, "listar_mensagens")
 
 
 # =====================================================
-# CONFIGURACOES - LISTAGEM E CADASTRO
+# CONFIGURACOES
 # =====================================================
 
 CAMPOS_CONFIGURACAO = [
-    {
-        "nome": "nome_site",
-        "rotulo": "Nome do site",
-        "obrigatorio": True,
-        "maxlength": 150,
-        "valor": "Meu Site"
-    },
-    {
-        "nome": "email_contato",
-        "rotulo": "E-mail de contato",
-        "tipo": "email",
-        "maxlength": 180
-    },
-    {
-        "nome": "telefone",
-        "rotulo": "Telefone",
-        "maxlength": 30
-    },
-    {
-        "nome": "endereco",
-        "rotulo": "Endereço",
-        "maxlength": 255
-    },
-    {
-        "nome": "moeda",
-        "rotulo": "Moeda",
-        "obrigatorio": True,
-        "maxlength": 10,
-        "valor": "BRL"
-    },
-    {
-        "nome": "notificacoes_ativas",
-        "rotulo": "Notificações",
-        "tipo": "select",
-        "obrigatorio": True,
-        "opcoes": [
-            ("1", "Ativadas"),
-            ("0", "Desativadas")
-        ]
-    }
+    {"nome": "nome_site", "rotulo": "Nome do site",
+     "obrigatorio": True, "maxlength": 150, "valor": "Meu Site"},
+    {"nome": "email_contato", "rotulo": "E-mail de contato",
+     "tipo": "email", "maxlength": 180},
+    {"nome": "telefone", "rotulo": "Telefone", "maxlength": 30},
+    {"nome": "endereco", "rotulo": "Endereço", "maxlength": 255},
+    {"nome": "moeda", "rotulo": "Moeda",
+     "obrigatorio": True, "maxlength": 10, "valor": "BRL"},
+    {"nome": "notificacoes_ativas", "rotulo": "Notificações",
+     "tipo": "select", "obrigatorio": True,
+     "opcoes": [("1", "Ativadas"), ("0", "Desativadas")]},
 ]
+
+
+def ler_configuracao():
+    nome_site = texto("nome_site")
+    moeda = texto("moeda")
+    notificacoes = request.form.get("notificacoes_ativas", "1")
+
+    if not nome_site or not moeda:
+        return None, "Informe o nome do site e a moeda."
+    if notificacoes not in ("0", "1"):
+        return None, "Opção de notificação inválida."
+
+    return (
+        nome_site,
+        texto("email_contato") or None,
+        texto("telefone") or None,
+        texto("endereco") or None,
+        moeda,
+        int(notificacoes),
+    ), None
 
 
 @app.route("/configuracoes")
@@ -1405,17 +1541,9 @@ def listar_configuracoes():
     return listar_dados(
         "Configurações do sistema",
         """
-        SELECT
-            id,
-            nome_site,
-            email_contato,
-            telefone,
-            endereco,
-            moeda,
-            notificacoes_ativas,
-            data_atualizacao
-        FROM configuracoes
-        ORDER BY id
+        SELECT id, nome_site, email_contato, telefone, endereco,
+               moeda, notificacoes_ativas, data_atualizacao
+        FROM configuracoes ORDER BY id
         """,
         [
             ("ID", "id"),
@@ -1425,346 +1553,82 @@ def listar_configuracoes():
             ("Endereço", "endereco"),
             ("Moeda", "moeda"),
             ("Notificações ativas (1 = sim)", "notificacoes_ativas"),
-            ("Última atualização", "data_atualizacao")
-        ]
+            ("Última atualização", "data_atualizacao"),
+        ],
+        acoes=("/configuracoes", "id")
     )
 
 
 @app.route("/configuracoes/novo", methods=["GET", "POST"])
+@tratar_erro_banco
 def cadastrar_configuracao():
     if request.method == "GET":
         return formulario_html(
-            "Cadastrar configuração",
-            "/configuracoes/novo",
+            "Cadastrar configuração", "/configuracoes/novo",
             CAMPOS_CONFIGURACAO
         )
 
-    nome_site = request.form.get(
-        "nome_site", ""
-    ).strip()
+    dados, aviso = ler_configuracao()
+    if aviso:
+        return erro_formulario(aviso)
 
-    email = request.form.get(
-        "email_contato", ""
-    ).strip()
-
-    telefone = request.form.get(
-        "telefone", ""
-    ).strip()
-
-    endereco = request.form.get(
-        "endereco", ""
-    ).strip()
-
-    moeda = request.form.get(
-        "moeda", "BRL"
-    ).strip()
-
-    notificacoes = request.form.get(
-        "notificacoes_ativas", "1"
+    return salvar(
+        """
+        INSERT INTO configuracoes (
+            nome_site, email_contato, telefone, endereco,
+            moeda, notificacoes_ativas
+        )
+        VALUES (%s, %s, %s, %s, %s, %s)
+        """,
+        dados, "listar_configuracoes",
+        "Não foi possível cadastrar a configuração."
     )
 
-    if not nome_site or not moeda:
-        return erro_formulario(
-            "Informe o nome do site e a moeda."
+
+@app.route("/configuracoes/<int:id_config>/editar", methods=["GET", "POST"])
+@tratar_erro_banco
+def editar_configuracao(id_config):
+    registro = buscar_um(
+        "SELECT * FROM configuracoes WHERE id = %s", (id_config,)
+    )
+    if not registro:
+        return erro_formulario("Configuração não encontrada.", 404)
+
+    if request.method == "GET":
+        return formulario_html(
+            "Editar configuração", f"/configuracoes/{id_config}/editar",
+            CAMPOS_CONFIGURACAO, registro
         )
 
-    if notificacoes not in ("0", "1"):
-        return erro_formulario(
-            "Opção de notificação inválida."
-        )
+    dados, aviso = ler_configuracao()
+    if aviso:
+        return erro_formulario(aviso)
 
-    try:
-        executar_sql(
-            """
-            INSERT INTO configuracoes (
-                nome_site,
-                email_contato,
-                telefone,
-                endereco,
-                moeda,
-                notificacoes_ativas
-            )
-            VALUES (%s, %s, %s, %s, %s, %s)
-            """,
-            (
-                nome_site,
-                email or None,
-                telefone or None,
-                endereco or None,
-                moeda,
-                int(notificacoes)
-            )
-        )
-
-        return redirect(
-            url_for("listar_configuracoes")
-        )
-
-    except mysql.connector.Error:
-        return erro_formulario(
-            "Não foi possível cadastrar a configuração.",
-            500
-        )
+    return salvar(
+        """
+        UPDATE configuracoes
+        SET nome_site = %s, email_contato = %s, telefone = %s,
+            endereco = %s, moeda = %s, notificacoes_ativas = %s
+        WHERE id = %s
+        """,
+        dados + (id_config,), "listar_configuracoes",
+        "Não foi possível atualizar a configuração."
+    )
 
 
-
-// rotasFK.js — rotas das tabelas com chave estrangeira:
-// morador, funcionario, solicitacao, historico
-//
-// Uso no seu app principal (reaproveitando o pool que você já tem):
-//   const rotasFK = require('./rotasFK');
-//   app.use(rotasFK(pool));
-//
-// O pool deve ser do mysql2/promise.
-
-const express = require('express');
-
-module.exports = (pool) => {
-  const router = express.Router();
-
-  // Trata erros de forma central (inclusive violações de chave estrangeira)
-  const wrap = (fn) => (req, res) =>
-    fn(req, res).catch((err) => {
-      console.error(err);
-      if (err.code === 'ER_NO_REFERENCED_ROW_2')
-        return res.status(400).json({ erro: 'Chave estrangeira inválida: registro referenciado não existe.' });
-      if (err.code === 'ER_ROW_IS_REFERENCED_2')
-        return res.status(409).json({ erro: 'Registro não pode ser removido: está sendo usado em outra tabela.' });
-      if (err.code === 'ER_BAD_NULL_ERROR')
-        return res.status(400).json({ erro: 'Campo obrigatório ausente.' });
-      res.status(500).json({ erro: 'Erro interno do servidor.' });
-    });
-
-  /* ======================= MORADOR (FK: id_usuario) ======================= */
-
-  router.get('/moradores', wrap(async (req, res) => {
-    const [rows] = await pool.query(
-      `SELECT m.*, u.login FROM morador m
-       INNER JOIN usuario u ON u.id_usuario = m.id_usuario`);
-    res.json(rows);
-  }));
-
-  router.get('/moradores/:id', wrap(async (req, res) => {
-    const [rows] = await pool.query(
-      `SELECT m.*, u.login FROM morador m
-       INNER JOIN usuario u ON u.id_usuario = m.id_usuario
-       WHERE m.id_morador = ?`, [req.params.id]);
-    if (!rows.length) return res.status(404).json({ erro: 'Morador não encontrado.' });
-    res.json(rows[0]);
-  }));
-
-  router.post('/moradores', wrap(async (req, res) => {
-    const { id_usuario, nome, cpf, telefone, email, endereco } = req.body;
-    const [r] = await pool.query(
-      `INSERT INTO morador (id_usuario, nome, cpf, telefone, email, endereco)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [id_usuario, nome, cpf, telefone, email, endereco]);
-    res.status(201).json({ id_morador: r.insertId });
-  }));
-
-  router.put('/moradores/:id', wrap(async (req, res) => {
-    const { id_usuario, nome, cpf, telefone, email, endereco } = req.body;
-    const [r] = await pool.query(
-      `UPDATE morador SET id_usuario=?, nome=?, cpf=?, telefone=?, email=?, endereco=?
-       WHERE id_morador=?`,
-      [id_usuario, nome, cpf, telefone, email, endereco, req.params.id]);
-    if (!r.affectedRows) return res.status(404).json({ erro: 'Morador não encontrado.' });
-    res.json({ mensagem: 'Morador atualizado.' });
-  }));
-
-  router.delete('/moradores/:id', wrap(async (req, res) => {
-    const [r] = await pool.query('DELETE FROM morador WHERE id_morador=?', [req.params.id]);
-    if (!r.affectedRows) return res.status(404).json({ erro: 'Morador não encontrado.' });
-    res.json({ mensagem: 'Morador removido.' });
-  }));
-
-  /* ================= FUNCIONARIO (FK: id_usuario, id_setor) ================= */
-
-  const SQL_FUNC = `
-    SELECT f.*, s.nome_setor, u.login
-    FROM funcionario f
-    INNER JOIN setor s ON s.id_setor = f.id_setor
-    INNER JOIN usuario u ON u.id_usuario = f.id_usuario`;
-
-  router.get('/funcionarios', wrap(async (req, res) => {
-    const [rows] = await pool.query(SQL_FUNC);
-    res.json(rows);
-  }));
-
-  router.get('/funcionarios/:id', wrap(async (req, res) => {
-    const [rows] = await pool.query(`${SQL_FUNC} WHERE f.id_funcionario = ?`, [req.params.id]);
-    if (!rows.length) return res.status(404).json({ erro: 'Funcionário não encontrado.' });
-    res.json(rows[0]);
-  }));
-
-  router.post('/funcionarios', wrap(async (req, res) => {
-    const { id_usuario, id_setor, nome, matricula, cargo } = req.body;
-    const [r] = await pool.query(
-      `INSERT INTO funcionario (id_usuario, id_setor, nome, matricula, cargo)
-       VALUES (?, ?, ?, ?, ?)`,
-      [id_usuario, id_setor, nome, matricula, cargo]);
-    res.status(201).json({ id_funcionario: r.insertId });
-  }));
-
-  router.put('/funcionarios/:id', wrap(async (req, res) => {
-    const { id_usuario, id_setor, nome, matricula, cargo } = req.body;
-    const [r] = await pool.query(
-      `UPDATE funcionario SET id_usuario=?, id_setor=?, nome=?, matricula=?, cargo=?
-       WHERE id_funcionario=?`,
-      [id_usuario, id_setor, nome, matricula, cargo, req.params.id]);
-    if (!r.affectedRows) return res.status(404).json({ erro: 'Funcionário não encontrado.' });
-    res.json({ mensagem: 'Funcionário atualizado.' });
-  }));
-
-  router.delete('/funcionarios/:id', wrap(async (req, res) => {
-    const [r] = await pool.query('DELETE FROM funcionario WHERE id_funcionario=?', [req.params.id]);
-    if (!r.affectedRows) return res.status(404).json({ erro: 'Funcionário não encontrado.' });
-    res.json({ mensagem: 'Funcionário removido.' });
-  }));
-
-  /* ===== SOLICITACAO (FK: id_morador, id_categoria, id_setor) ===== */
-
-  const SQL_SOL = `
-    SELECT s.*, m.nome AS morador, c.nome_categoria AS categoria, st.nome_setor AS setor
-    FROM solicitacao s
-    INNER JOIN morador m ON m.id_morador = s.id_morador
-    INNER JOIN categoria c ON c.id_categoria = s.id_categoria
-    INNER JOIN setor st ON st.id_setor = s.id_setor`;
-
-  // Filtros opcionais: ?status=Recebida&id_setor=1&id_morador=2
-  router.get('/solicitacoes', wrap(async (req, res) => {
-    const filtros = [], valores = [];
-    for (const campo of ['status', 'id_setor', 'id_morador', 'id_categoria']) {
-      if (req.query[campo]) { filtros.push(`s.${campo} = ?`); valores.push(req.query[campo]); }
-    }
-    const where = filtros.length ? ` WHERE ${filtros.join(' AND ')}` : '';
-    const [rows] = await pool.query(`${SQL_SOL}${where} ORDER BY s.data_registro DESC`, valores);
-    res.json(rows);
-  }));
-
-  router.get('/solicitacoes/protocolo/:protocolo', wrap(async (req, res) => {
-    const [rows] = await pool.query(`${SQL_SOL} WHERE s.protocolo = ?`, [req.params.protocolo]);
-    if (!rows.length) return res.status(404).json({ erro: 'Solicitação não encontrada.' });
-    res.json(rows[0]);
-  }));
-
-  router.get('/solicitacoes/:id', wrap(async (req, res) => {
-    const [rows] = await pool.query(`${SQL_SOL} WHERE s.id_solicitacao = ?`, [req.params.id]);
-    if (!rows.length) return res.status(404).json({ erro: 'Solicitação não encontrada.' });
-    res.json(rows[0]);
-  }));
-
-  // Histórico de uma solicitação
-  router.get('/solicitacoes/:id/historico', wrap(async (req, res) => {
-    const [rows] = await pool.query(
-      `SELECT h.*, f.nome AS funcionario
-       FROM historico h
-       INNER JOIN funcionario f ON f.id_funcionario = h.id_funcionario
-       WHERE h.id_solicitacao = ?
-       ORDER BY h.data_alteracao, h.id_historico`, [req.params.id]);
-    res.json(rows);
-  }));
-
-  router.post('/solicitacoes', wrap(async (req, res) => {
-    const { id_morador, id_categoria, id_setor, descricao, localizacao } = req.body;
-    const protocolo = req.body.protocolo ||
-      `PROT-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
-    const [r] = await pool.query(
-      `INSERT INTO solicitacao
-       (id_morador, id_categoria, id_setor, protocolo, descricao, localizacao, data_registro, status)
-       VALUES (?, ?, ?, ?, ?, ?, CURDATE(), 'Recebida')`,
-      [id_morador, id_categoria, id_setor, protocolo, descricao, localizacao]);
-    res.status(201).json({ id_solicitacao: r.insertId, protocolo });
-  }));
-
-  router.put('/solicitacoes/:id', wrap(async (req, res) => {
-    const { id_morador, id_categoria, id_setor, descricao, localizacao } = req.body;
-    const [r] = await pool.query(
-      `UPDATE solicitacao SET id_morador=?, id_categoria=?, id_setor=?, descricao=?, localizacao=?
-       WHERE id_solicitacao=?`,
-      [id_morador, id_categoria, id_setor, descricao, localizacao, req.params.id]);
-    if (!r.affectedRows) return res.status(404).json({ erro: 'Solicitação não encontrada.' });
-    res.json({ mensagem: 'Solicitação atualizada.' });
-  }));
-
-  router.delete('/solicitacoes/:id', wrap(async (req, res) => {
-    const [r] = await pool.query('DELETE FROM solicitacao WHERE id_solicitacao=?', [req.params.id]);
-    if (!r.affectedRows) return res.status(404).json({ erro: 'Solicitação não encontrada.' });
-    res.json({ mensagem: 'Solicitação removida.' });
-  }));
-
-  /* ========== HISTORICO (FK: id_solicitacao, id_funcionario) ========== */
-
-  const SQL_HIST = `
-    SELECT h.*, s.protocolo, f.nome AS funcionario
-    FROM historico h
-    INNER JOIN solicitacao s ON s.id_solicitacao = h.id_solicitacao
-    INNER JOIN funcionario f ON f.id_funcionario = h.id_funcionario`;
-
-  router.get('/historico', wrap(async (req, res) => {
-    const [rows] = await pool.query(`${SQL_HIST} ORDER BY h.data_alteracao DESC, h.id_historico DESC`);
-    res.json(rows);
-  }));
-
-  router.get('/historico/:id', wrap(async (req, res) => {
-    const [rows] = await pool.query(`${SQL_HIST} WHERE h.id_historico = ?`, [req.params.id]);
-    if (!rows.length) return res.status(404).json({ erro: 'Registro de histórico não encontrado.' });
-    res.json(rows[0]);
-  }));
-
-  // Registra a mudança de status e atualiza a solicitação na mesma transação
-  router.post('/historico', wrap(async (req, res) => {
-    const { id_solicitacao, id_funcionario, novo_status, observacao } = req.body;
-    const conn = await pool.getConnection();
-    try {
-      await conn.beginTransaction();
-
-      const [sol] = await conn.query(
-        'SELECT status FROM solicitacao WHERE id_solicitacao = ? FOR UPDATE', [id_solicitacao]);
-      if (!sol.length) {
-        await conn.rollback();
-        return res.status(404).json({ erro: 'Solicitação não encontrada.' });
-      }
-
-      const [r] = await conn.query(
-        `INSERT INTO historico
-         (id_solicitacao, id_funcionario, status_anterior, novo_status, data_alteracao, observacao)
-         VALUES (?, ?, ?, ?, CURDATE(), ?)`,
-        [id_solicitacao, id_funcionario, sol[0].status, novo_status, observacao]);
-
-      await conn.query('UPDATE solicitacao SET status = ? WHERE id_solicitacao = ?',
-        [novo_status, id_solicitacao]);
-
-      await conn.commit();
-      res.status(201).json({ id_historico: r.insertId, status_anterior: sol[0].status, novo_status });
-    } catch (err) {
-      await conn.rollback();
-      throw err;
-    } finally {
-      conn.release();
-    }
-  }));
-
-  // Apenas a observação pode ser corrigida; o histórico funciona como registro de auditoria
-  router.put('/historico/:id', wrap(async (req, res) => {
-    const [r] = await pool.query(
-      'UPDATE historico SET observacao=? WHERE id_historico=?', [req.body.observacao, req.params.id]);
-    if (!r.affectedRows) return res.status(404).json({ erro: 'Registro de histórico não encontrado.' });
-    res.json({ mensagem: 'Observação atualizada.' });
-  }));
-
-  router.delete('/historico/:id', wrap(async (req, res) => {
-    const [r] = await pool.query('DELETE FROM historico WHERE id_historico=?', [req.params.id]);
-    if (!r.affectedRows) return res.status(404).json({ erro: 'Registro de histórico não encontrado.' });
-    res.json({ mensagem: 'Registro removido.' });
-  }));
+@app.route("/configuracoes/<int:id_config>/excluir", methods=["POST"])
+@tratar_erro_banco
+def excluir_configuracao(id_config):
+    return excluir("configuracoes", "id", id_config, "listar_configuracoes")
 
 
-  return router;
-};
 # =====================================================
 # EXECUCAO DO SISTEMA
 # =====================================================
 
 if __name__ == "__main__":
-    app.run(debug=True)        
+    # Em produção, use debug=False e um servidor WSGI (gunicorn/waitress).
+    app.run(debug=False)
+
+
+# ===== FIM DA PARTE 3 =====
