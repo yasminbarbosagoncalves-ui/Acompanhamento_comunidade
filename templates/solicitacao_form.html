@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block conteudo %}
+<div class="form-container">
+    <h2>Cadastrar nova solicitação</h2>
+    <form method="POST" action="/solicitacoes/novo">
+        <div class="form-group">
+            <label>Morador:</label>
+            <select name="id_morador" required>
+                <option value="">Selecione...</option>
+                {% for m in moradores %}<option value="{{ m.id_morador }}">{{ m.nome }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Categoria:</label>
+            <select name="id_categoria" required>
+                <option value="">Selecione...</option>
+                {% for c in categorias %}<option value="{{ c.id_categoria }}">{{ c.nome_categoria }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Setor:</label>
+            <select name="id_setor" required>
+                <option value="">Selecione...</option>
+                {% for s in setores %}<option value="{{ s.id_setor }}">{{ s.nome_setor }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="form-group"><label>Protocolo:</label><input type="text" name="protocolo" required></div>
+        <div class="form-group"><label>Descrição:</label><textarea name="descricao" required></textarea></div>
+        <div class="form-group"><label>Localização:</label><input type="text" name="localizacao" required></div>
+        <div class="form-group"><label>Data do Registro:</label><input type="date" name="data_registro" required></div>
+        <div class="form-group">
+            <label>Status:</label>
+            <select name="status" required>
+                <option value="Recebida">Recebida</option>
+                <option value="Em Análise">Em Análise</option>
+                <option value="Encaminhada">Encaminhada</option>
+                <option value="Em Execução">Em Execução</option>
+                <option value="Concluída">Concluída</option>
+            </select>
+        </div>
+        <button type="submit">Cadastrar solicitação</button>
+    </form>
+</div>
+{% endblock %}

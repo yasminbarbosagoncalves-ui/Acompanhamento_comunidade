@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block conteudo %}
+<!-- Imagem de Banner -->
+<img src="{{ url_for('static', filename='img/banner.jpg') }}" alt="Banner" class="imagem-banner">
+
+<h2>Visão Geral do Sistema</h2>
+
+<!-- Container dos Cards -->
+<div class="cards-container">
+    
+    <!-- Card 1 -->
+    <div class="card">
+        <h3>Moradores Cadastrados</h3>
+        <div class="numero">{{ moradores }}</div>
+    </div>
+
+    <!-- Card 2 -->
+    <div class="card">
+        <h3>Solicitações Abertas</h3>
+        <div class="numero">{{ solicitacoes }}</div>
+    </div>
+
+    <!-- Card 3 -->
+    <div class="card">
+        <h3>Produtos em Estoque</h3>
+        <div class="numero">{{ produtos }}</div>
+    </div>
+
+    <!-- Card 4 -->
+    <div class="card">
+        <h3>Mensagens Recebidas</h3>
+        <div class="numero">{{ mensagens }}</div>
+    </div>
+
+</div>
+{% endblock %}

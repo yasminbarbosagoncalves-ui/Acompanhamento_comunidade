@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block conteudo %}
+<div class="table-container">
+    <h2>Funcionários Cadastrados</h2>
+    <p><a href="/funcionarios/novo"><button>+ Cadastrar novo funcionário</button></a></p>
+    <table>
+        <thead>
+            <tr><th>ID</th><th>Nome</th><th>Matrícula</th><th>Cargo</th><th>Setor</th></tr>
+        </thead>
+        <tbody>
+            {% for f in funcionarios %}
+            <tr>
+                <td>{{ f.id_funcionario }}</td>
+                <td>{{ f.nome }}</td>
+                <td>{{ f.matricula }}</td>
+                <td>{{ f.cargo or '' }}</td>
+                <td>{{ f.nome_setor }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

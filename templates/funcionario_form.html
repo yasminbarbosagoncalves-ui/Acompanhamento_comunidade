@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block conteudo %}
+<div class="form-container">
+    <h2>Cadastrar novo funcionário</h2>
+    <form method="POST" action="/funcionarios/novo">
+        <div class="form-group">
+            <label>Usuário Vinculado:</label>
+            <select name="id_usuario" required>
+                <option value="">Selecione...</option>
+                {% for u in usuarios %}<option value="{{ u.id_usuario }}">{{ u.nome }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Setor:</label>
+            <select name="id_setor" required>
+                <option value="">Selecione...</option>
+                {% for s in setores %}<option value="{{ s.id_setor }}">{{ s.nome_setor }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="form-group"><label>Nome:</label><input type="text" name="nome" required></div>
+        <div class="form-group"><label>Matrícula:</label><input type="text" name="matricula" required></div>
+        <div class="form-group"><label>Cargo:</label><input type="text" name="cargo"></div>
+        <button type="submit">Cadastrar funcionário</button>
+    </form>
+</div>
+{% endblock %}

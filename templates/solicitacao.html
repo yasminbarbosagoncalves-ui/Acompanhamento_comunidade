@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block conteudo %}
+<div class="table-container">
+    <h2>Solicitações Cadastradas</h2>
+    <p><a href="/solicitacoes/novo"><button>+ Cadastrar nova solicitação</button></a></p>
+    <table>
+        <thead>
+            <tr><th>ID</th><th>Protocolo</th><th>Morador</th><th>Categoria</th><th>Setor</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+            {% for s in solicitacoes %}
+            <tr>
+                <td>{{ s.id_solicitacao }}</td>
+                <td>{{ s.protocolo }}</td>
+                <td>{{ s.morador }}</td>
+                <td>{{ s.categoria }}</td>
+                <td>{{ s.setor }}</td>
+                <td>{{ s.status }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

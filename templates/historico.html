@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block conteudo %}
+<div class="table-container">
+    <h2>Histórico de Alterações</h2>
+    <p><a href="/historico/novo"><button>+ Cadastrar novo histórico</button></a></p>
+    <table>
+        <thead>
+            <tr><th>ID</th><th>Protocolo</th><th>Funcionário</th><th>Status Anterior</th><th>Novo Status</th><th>Data</th></tr>
+        </thead>
+        <tbody>
+            {% for h in historicos %}
+            <tr>
+                <td>{{ h.id_historico }}</td>
+                <td>{{ h.protocolo }}</td>
+                <td>{{ h.funcionario }}</td>
+                <td>{{ h.status_anterior }}</td>
+                <td>{{ h.novo_status }}</td>
+                <td>{{ h.data_alteracao }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

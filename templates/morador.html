@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block conteudo %}
+<div class="table-container">
+    <h2>Moradores Cadastrados</h2>
+    <p><a href="/moradores/novo"><button>+ Cadastrar novo morador</button></a></p>
+    <table>
+        <thead>
+            <tr><th>ID</th><th>Nome</th><th>CPF</th><th>Telefone</th><th>E-mail</th><th>Endereço</th></tr>
+        </thead>
+        <tbody>
+            {% for m in moradores %}
+            <tr>
+                <td>{{ m.id_morador }}</td>
+                <td>{{ m.nome }}</td>
+                <td>{{ m.cpf }}</td>
+                <td>{{ m.telefone or '' }}</td>
+                <td>{{ m.email or '' }}</td>
+                <td>{{ m.endereco or '' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

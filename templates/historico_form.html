@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block conteudo %}
+<div class="form-container">
+    <h2>Cadastrar novo histórico</h2>
+    <form method="POST" action="/historico/novo">
+        <div class="form-group">
+            <label>Solicitação (Protocolo):</label>
+            <select name="id_solicitacao" required>
+                <option value="">Selecione...</option>
+                {% for s in solicitacoes %}<option value="{{ s.id_solicitacao }}">{{ s.protocolo }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Funcionário:</label>
+            <select name="id_funcionario" required>
+                <option value="">Selecione...</option>
+                {% for f in funcionarios %}<option value="{{ f.id_funcionario }}">{{ f.nome }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="form-group"><label>Status Anterior:</label><input type="text" name="status_anterior" required></div>
+        <div class="form-group"><label>Novo Status:</label><input type="text" name="novo_status" required></div>
+        <div class="form-group"><label>Data da Alteração:</label><input type="date" name="data_alteracao" required></div>
+        <div class="form-group"><label>Observação:</label><textarea name="observacao"></textarea></div>
+        <button type="submit">Cadastrar histórico</button>
+    </form>
+</div>
+{% endblock %}
