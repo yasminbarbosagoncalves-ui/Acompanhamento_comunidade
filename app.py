@@ -1507,6 +1507,261 @@ def cadastrar_configuracao():
         )
 
 
+
+// rotasFK.js — rotas das tabelas com chave estrangeira:
+// morador, funcionario, solicitacao, historico
+//
+// Uso no seu app principal (reaproveitando o pool que você já tem):
+//   const rotasFK = require('./rotasFK');
+//   app.use(rotasFK(pool));
+//
+// O pool deve ser do mysql2/promise.
+
+const express = require('express');
+
+module.exports = (pool) => {
+  const router = express.Router();
+
+  // Trata erros de forma central (inclusive violações de chave estrangeira)
+  const wrap = (fn) => (req, res) =>
+    fn(req, res).catch((err) => {
+      console.error(err);
+      if (err.code === 'ER_NO_REFERENCED_ROW_2')
+        return res.status(400).json({ erro: 'Chave estrangeira inválida: registro referenciado não existe.' });
+      if (err.code === 'ER_ROW_IS_REFERENCED_2')
+        return res.status(409).json({ erro: 'Registro não pode ser removido: está sendo usado em outra tabela.' });
+      if (err.code === 'ER_BAD_NULL_ERROR')
+        return res.status(400).json({ erro: 'Campo obrigatório ausente.' });
+      res.status(500).json({ erro: 'Erro interno do servidor.' });
+    });
+
+  /* ======================= MORADOR (FK: id_usuario) ======================= */
+
+  router.get('/moradores', wrap(async (req, res) => {
+    const [rows] = await pool.query(
+      `SELECT m.*, u.login FROM morador m
+       INNER JOIN usuario u ON u.id_usuario = m.id_usuario`);
+    res.json(rows);
+  }));
+
+  router.get('/moradores/:id', wrap(async (req, res) => {
+    const [rows] = await pool.query(
+      `SELECT m.*, u.login FROM morador m
+       INNER JOIN usuario u ON u.id_usuario = m.id_usuario
+       WHERE m.id_morador = ?`, [req.params.id]);
+    if (!rows.length) return res.status(404).json({ erro: 'Morador não encontrado.' });
+    res.json(rows[0]);
+  }));
+
+  router.post('/moradores', wrap(async (req, res) => {
+    const { id_usuario, nome, cpf, telefone, email, endereco } = req.body;
+    const [r] = await pool.query(
+      `INSERT INTO morador (id_usuario, nome, cpf, telefone, email, endereco)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [id_usuario, nome, cpf, telefone, email, endereco]);
+    res.status(201).json({ id_morador: r.insertId });
+  }));
+
+  router.put('/moradores/:id', wrap(async (req, res) => {
+    const { id_usuario, nome, cpf, telefone, email, endereco } = req.body;
+    const [r] = await pool.query(
+      `UPDATE morador SET id_usuario=?, nome=?, cpf=?, telefone=?, email=?, endereco=?
+       WHERE id_morador=?`,
+      [id_usuario, nome, cpf, telefone, email, endereco, req.params.id]);
+    if (!r.affectedRows) return res.status(404).json({ erro: 'Morador não encontrado.' });
+    res.json({ mensagem: 'Morador atualizado.' });
+  }));
+
+  router.delete('/moradores/:id', wrap(async (req, res) => {
+    const [r] = await pool.query('DELETE FROM morador WHERE id_morador=?', [req.params.id]);
+    if (!r.affectedRows) return res.status(404).json({ erro: 'Morador não encontrado.' });
+    res.json({ mensagem: 'Morador removido.' });
+  }));
+
+  /* ================= FUNCIONARIO (FK: id_usuario, id_setor) ================= */
+
+  const SQL_FUNC = `
+    SELECT f.*, s.nome_setor, u.login
+    FROM funcionario f
+    INNER JOIN setor s ON s.id_setor = f.id_setor
+    INNER JOIN usuario u ON u.id_usuario = f.id_usuario`;
+
+  router.get('/funcionarios', wrap(async (req, res) => {
+    const [rows] = await pool.query(SQL_FUNC);
+    res.json(rows);
+  }));
+
+  router.get('/funcionarios/:id', wrap(async (req, res) => {
+    const [rows] = await pool.query(`${SQL_FUNC} WHERE f.id_funcionario = ?`, [req.params.id]);
+    if (!rows.length) return res.status(404).json({ erro: 'Funcionário não encontrado.' });
+    res.json(rows[0]);
+  }));
+
+  router.post('/funcionarios', wrap(async (req, res) => {
+    const { id_usuario, id_setor, nome, matricula, cargo } = req.body;
+    const [r] = await pool.query(
+      `INSERT INTO funcionario (id_usuario, id_setor, nome, matricula, cargo)
+       VALUES (?, ?, ?, ?, ?)`,
+      [id_usuario, id_setor, nome, matricula, cargo]);
+    res.status(201).json({ id_funcionario: r.insertId });
+  }));
+
+  router.put('/funcionarios/:id', wrap(async (req, res) => {
+    const { id_usuario, id_setor, nome, matricula, cargo } = req.body;
+    const [r] = await pool.query(
+      `UPDATE funcionario SET id_usuario=?, id_setor=?, nome=?, matricula=?, cargo=?
+       WHERE id_funcionario=?`,
+      [id_usuario, id_setor, nome, matricula, cargo, req.params.id]);
+    if (!r.affectedRows) return res.status(404).json({ erro: 'Funcionário não encontrado.' });
+    res.json({ mensagem: 'Funcionário atualizado.' });
+  }));
+
+  router.delete('/funcionarios/:id', wrap(async (req, res) => {
+    const [r] = await pool.query('DELETE FROM funcionario WHERE id_funcionario=?', [req.params.id]);
+    if (!r.affectedRows) return res.status(404).json({ erro: 'Funcionário não encontrado.' });
+    res.json({ mensagem: 'Funcionário removido.' });
+  }));
+
+  /* ===== SOLICITACAO (FK: id_morador, id_categoria, id_setor) ===== */
+
+  const SQL_SOL = `
+    SELECT s.*, m.nome AS morador, c.nome_categoria AS categoria, st.nome_setor AS setor
+    FROM solicitacao s
+    INNER JOIN morador m ON m.id_morador = s.id_morador
+    INNER JOIN categoria c ON c.id_categoria = s.id_categoria
+    INNER JOIN setor st ON st.id_setor = s.id_setor`;
+
+  // Filtros opcionais: ?status=Recebida&id_setor=1&id_morador=2
+  router.get('/solicitacoes', wrap(async (req, res) => {
+    const filtros = [], valores = [];
+    for (const campo of ['status', 'id_setor', 'id_morador', 'id_categoria']) {
+      if (req.query[campo]) { filtros.push(`s.${campo} = ?`); valores.push(req.query[campo]); }
+    }
+    const where = filtros.length ? ` WHERE ${filtros.join(' AND ')}` : '';
+    const [rows] = await pool.query(`${SQL_SOL}${where} ORDER BY s.data_registro DESC`, valores);
+    res.json(rows);
+  }));
+
+  router.get('/solicitacoes/protocolo/:protocolo', wrap(async (req, res) => {
+    const [rows] = await pool.query(`${SQL_SOL} WHERE s.protocolo = ?`, [req.params.protocolo]);
+    if (!rows.length) return res.status(404).json({ erro: 'Solicitação não encontrada.' });
+    res.json(rows[0]);
+  }));
+
+  router.get('/solicitacoes/:id', wrap(async (req, res) => {
+    const [rows] = await pool.query(`${SQL_SOL} WHERE s.id_solicitacao = ?`, [req.params.id]);
+    if (!rows.length) return res.status(404).json({ erro: 'Solicitação não encontrada.' });
+    res.json(rows[0]);
+  }));
+
+  // Histórico de uma solicitação
+  router.get('/solicitacoes/:id/historico', wrap(async (req, res) => {
+    const [rows] = await pool.query(
+      `SELECT h.*, f.nome AS funcionario
+       FROM historico h
+       INNER JOIN funcionario f ON f.id_funcionario = h.id_funcionario
+       WHERE h.id_solicitacao = ?
+       ORDER BY h.data_alteracao, h.id_historico`, [req.params.id]);
+    res.json(rows);
+  }));
+
+  router.post('/solicitacoes', wrap(async (req, res) => {
+    const { id_morador, id_categoria, id_setor, descricao, localizacao } = req.body;
+    const protocolo = req.body.protocolo ||
+      `PROT-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
+    const [r] = await pool.query(
+      `INSERT INTO solicitacao
+       (id_morador, id_categoria, id_setor, protocolo, descricao, localizacao, data_registro, status)
+       VALUES (?, ?, ?, ?, ?, ?, CURDATE(), 'Recebida')`,
+      [id_morador, id_categoria, id_setor, protocolo, descricao, localizacao]);
+    res.status(201).json({ id_solicitacao: r.insertId, protocolo });
+  }));
+
+  router.put('/solicitacoes/:id', wrap(async (req, res) => {
+    const { id_morador, id_categoria, id_setor, descricao, localizacao } = req.body;
+    const [r] = await pool.query(
+      `UPDATE solicitacao SET id_morador=?, id_categoria=?, id_setor=?, descricao=?, localizacao=?
+       WHERE id_solicitacao=?`,
+      [id_morador, id_categoria, id_setor, descricao, localizacao, req.params.id]);
+    if (!r.affectedRows) return res.status(404).json({ erro: 'Solicitação não encontrada.' });
+    res.json({ mensagem: 'Solicitação atualizada.' });
+  }));
+
+  router.delete('/solicitacoes/:id', wrap(async (req, res) => {
+    const [r] = await pool.query('DELETE FROM solicitacao WHERE id_solicitacao=?', [req.params.id]);
+    if (!r.affectedRows) return res.status(404).json({ erro: 'Solicitação não encontrada.' });
+    res.json({ mensagem: 'Solicitação removida.' });
+  }));
+
+  /* ========== HISTORICO (FK: id_solicitacao, id_funcionario) ========== */
+
+  const SQL_HIST = `
+    SELECT h.*, s.protocolo, f.nome AS funcionario
+    FROM historico h
+    INNER JOIN solicitacao s ON s.id_solicitacao = h.id_solicitacao
+    INNER JOIN funcionario f ON f.id_funcionario = h.id_funcionario`;
+
+  router.get('/historico', wrap(async (req, res) => {
+    const [rows] = await pool.query(`${SQL_HIST} ORDER BY h.data_alteracao DESC, h.id_historico DESC`);
+    res.json(rows);
+  }));
+
+  router.get('/historico/:id', wrap(async (req, res) => {
+    const [rows] = await pool.query(`${SQL_HIST} WHERE h.id_historico = ?`, [req.params.id]);
+    if (!rows.length) return res.status(404).json({ erro: 'Registro de histórico não encontrado.' });
+    res.json(rows[0]);
+  }));
+
+  // Registra a mudança de status e atualiza a solicitação na mesma transação
+  router.post('/historico', wrap(async (req, res) => {
+    const { id_solicitacao, id_funcionario, novo_status, observacao } = req.body;
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+
+      const [sol] = await conn.query(
+        'SELECT status FROM solicitacao WHERE id_solicitacao = ? FOR UPDATE', [id_solicitacao]);
+      if (!sol.length) {
+        await conn.rollback();
+        return res.status(404).json({ erro: 'Solicitação não encontrada.' });
+      }
+
+      const [r] = await conn.query(
+        `INSERT INTO historico
+         (id_solicitacao, id_funcionario, status_anterior, novo_status, data_alteracao, observacao)
+         VALUES (?, ?, ?, ?, CURDATE(), ?)`,
+        [id_solicitacao, id_funcionario, sol[0].status, novo_status, observacao]);
+
+      await conn.query('UPDATE solicitacao SET status = ? WHERE id_solicitacao = ?',
+        [novo_status, id_solicitacao]);
+
+      await conn.commit();
+      res.status(201).json({ id_historico: r.insertId, status_anterior: sol[0].status, novo_status });
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+  }));
+
+  // Apenas a observação pode ser corrigida; o histórico funciona como registro de auditoria
+  router.put('/historico/:id', wrap(async (req, res) => {
+    const [r] = await pool.query(
+      'UPDATE historico SET observacao=? WHERE id_historico=?', [req.body.observacao, req.params.id]);
+    if (!r.affectedRows) return res.status(404).json({ erro: 'Registro de histórico não encontrado.' });
+    res.json({ mensagem: 'Observação atualizada.' });
+  }));
+
+  router.delete('/historico/:id', wrap(async (req, res) => {
+    const [r] = await pool.query('DELETE FROM historico WHERE id_historico=?', [req.params.id]);
+    if (!r.affectedRows) return res.status(404).json({ erro: 'Registro de histórico não encontrado.' });
+    res.json({ mensagem: 'Registro removido.' });
+  }));
+
+
+  return router;
+};
 # =====================================================
 # EXECUCAO DO SISTEMA
 # =====================================================
