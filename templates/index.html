@@ -4,7 +4,11 @@
 <!-- Imagem de Banner -->
 <img src="{{ url_for('static', filename='img/banner.jpg') }}" alt="Banner" class="imagem-banner">
 
-<h2>Visão Geral do Sistema</h2>
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+    <h2>Visão Geral do Sistema</h2>
+    <!-- Botão de Sair -->
+    <a href="{{ url_for('logout') }}" style="background: #e74c3c; color: white; padding: 8px 15px; text-decoration: none; border-radius: 5px; font-weight: bold;">Sair</a>
+</div>
 
 <!-- Container dos Cards -->
 <div class="cards-container">

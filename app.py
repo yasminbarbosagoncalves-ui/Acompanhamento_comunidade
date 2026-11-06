@@ -1,4 +1,5 @@
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for, session
+from werkzeug.security import generate_password_hash, check_password_hash
 import mysql.connector
 from config import DB_CONFIG
 from werkzeug.security import generate_password_hash
@@ -67,6 +68,10 @@ def buscar_um(sql, parametros=()):
 
 @app.route("/")
 def index():
+    # Se o usuário não estiver logado, redireciona para a tela de login
+    if "usuario_id" not in session:
+        return redirect(url_for("login"))
+
     # Buscando a contagem de cada tabela
     qtd_moradores = consultar_sql("SELECT COUNT(*) as total FROM morador")[0]['total']
     qtd_solicitacoes = consultar_sql("SELECT COUNT(*) as total FROM solicitacao")[0]['total']
@@ -79,6 +84,44 @@ def index():
                            produtos=qtd_produtos,
                            mensagens=qtd_mensagens)
 
+# =====================================================
+# AUTENTICAÇÃO (LOGIN E LOGOUT)
+# =====================================================
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        login_digitado = request.form.get("login", "").strip()
+        senha_digitada = request.form.get("senha", "")
+
+        if not login_digitado or not senha_digitada:
+            return render_template("login.html", erro="Preencha login e senha.")
+
+        # Busca o usuário no banco de dados
+        usuario = buscar_um(
+            "SELECT id_usuario, nome, login, senha, perfil FROM usuario WHERE login = %s",
+            (login_digitado,)
+        )
+
+        # Verifica se o usuário existe e se a senha bate com o hash
+        if not usuario or not check_password_hash(usuario["senha"], senha_digitada):
+            return render_template("login.html", erro="Login ou senha inválidos.")
+
+        # Salva os dados na sessão
+        session["usuario_id"] = usuario["id_usuario"]
+        session["usuario_nome"] = usuario["nome"]
+        session["usuario_perfil"] = usuario["perfil"]
+
+        return redirect(url_for("index"))
+
+    # Se for GET, apenas mostra a tela de login
+    return render_template("login.html", erro=None)
+
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("login"))
 # =====================================================
 # USUÁRIOS
 # =====================================================
@@ -415,39 +458,7 @@ def cadastrar_mensagem():
         
     return render_template("mensagens_form.html")
 
-# =====================================================
-# CONFIGURAÇÕES
-# =====================================================
 
-@app.route("/configuracoes")
-def listar_configuracoes():
-    configuracoes = consultar_sql("SELECT * FROM configuracoes ORDER BY id")
-    return render_template("configuracoes.html", configuracoes=configuracoes)
-
-@app.route("/configuracoes/novo", methods=["GET", "POST"])
-def cadastrar_configuracao():
-    if request.method == "POST":
-        nome_site = request.form.get("nome_site", "").strip()
-        email_contato = request.form.get("email_contato", "").strip()
-        telefone = request.form.get("telefone", "").strip()
-        endereco = request.form.get("endereco", "").strip()
-        moeda = request.form.get("moeda", "BRL").strip()
-        notificacoes_ativas = request.form.get("notificacoes_ativas", "1")
-        
-        if not nome_site or not moeda:
-            return "Informe o nome do site e a moeda.", 400
-            
-        erro = executar_sql("""
-            INSERT INTO configuracoes (nome_site, email_contato, telefone, endereco, moeda, notificacoes_ativas)
-            VALUES (%s, %s, %s, %s, %s, %s)
-        """, (nome_site, email_contato or None, telefone or None, endereco or None, moeda, int(notificacoes_ativas)))
-        
-        if erro:
-            return f"Erro ao cadastrar: {erro}"
-            
-        return redirect(url_for("listar_configuracoes"))
-        
-    return render_template("configuracoes_form.html")
 
 # =====================================================
 # EXECUÇÃO

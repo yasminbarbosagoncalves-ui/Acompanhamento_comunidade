@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Login - Acompanhamento Comunitário</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: Arial, Helvetica, sans-serif;
+            background: linear-gradient(135deg, #6a11cb, #2575fc);
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .caixa-login {
+            background: #fff;
+            padding: 40px 35px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+            width: 100%;
+            max-width: 380px;
+        }
+        .caixa-login h1 {
+            text-align: center;
+            font-size: 22px;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        .caixa-login p.subtitulo {
+            text-align: center;
+            color: #777;
+            font-size: 14px;
+            margin-bottom: 25px;
+        }
+        .caixa-login label {
+            display: block;
+            font-size: 14px;
+            color: #444;
+            margin-bottom: 6px;
+            font-weight: bold;
+        }
+        .caixa-login input {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 18px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        .caixa-login input:focus {
+            outline: none;
+            border-color: #2575fc;
+        }
+        .caixa-login button {
+            width: 100%;
+            padding: 13px;
+            background: #2575fc;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .caixa-login button:hover {
+            background: #1a5fd0;
+        }
+        .erro {
+            background: #fdecea;
+            color: #b71c1c;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 14px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="caixa-login">
+        <h1>Acompanhamento Comunitário</h1>
+        <p class="subtitulo">Acesse com seu login e senha</p>
+
+        {% if erro %}
+            <div class="erro">{{ erro }}</div>
+        {% endif %}
+
+        <form method="POST" action="{{ url_for('login') }}">
+            <label for="login">Login</label>
+            <input type="text" id="login" name="login" placeholder="Digite seu login" required autofocus>
+
+            <label for="senha">Senha</label>
+            <input type="password" id="senha" name="senha" placeholder="Digite sua senha" required>
+
+            <button type="submit">Entrar</button>
+        </form>
+    </div>
+
+</body>
+</html>
