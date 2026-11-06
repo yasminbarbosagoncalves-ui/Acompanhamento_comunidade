@@ -13,6 +13,20 @@
     </a>
 </div>
 
+<!-- BARRA DE PESQUISA -->
+<div class="card card-custom p-3 mb-4">
+    <form method="GET" action="{{ url_for('listar_moradores') }}" class="d-flex gap-2">
+        <div class="input-group">
+            <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
+            <input type="text" name="busca" class="form-control border-start-0" placeholder="Pesquisar por nome ou CPF..." value="{{ busca|default('') }}">
+            <button class="btn btn-teal px-4" type="submit">Buscar</button>
+        </div>
+        {% if busca is defined and busca %}
+            <a href="{{ url_for('listar_moradores') }}" class="btn btn-outline-secondary">Limpar</a>
+        {% endif %}
+    </form>
+</div>
+
 <!-- CONTAINER DA TABELA -->
 <div class="card card-custom p-4">
     <div class="table-responsive">
@@ -49,19 +63,24 @@
                     </td>
                     <td><span class="text-truncate" style="max-width: 200px; display: inline-block;" title="{{ morador.endereco }}">{{ morador.endereco or 'Não informado' }}</span></td>
                     <td class="text-center">
-                        <button class="btn btn-sm btn-light text-teal border-0" title="Editar">
+                        <a href="{{ url_for('editar_morador', id=morador.id_morador) }}" class="btn btn-sm btn-light text-teal border-0" title="Editar">
                             <i class="bi bi-pencil-square fs-5"></i>
-                        </button>
-                        <button class="btn btn-sm btn-light text-danger border-0" title="Excluir">
+                        </a>
+                        
+                        <a href="{{ url_for('excluir_morador', id=morador.id_morador) }}" class="btn btn-sm btn-light text-danger border-0" title="Excluir" onclick="return confirm('Tem certeza que deseja excluir este morador?')">
                             <i class="bi bi-trash fs-5"></i>
-                        </button>
+                        </a>
                     </td>
                 </tr>
                 {% else %}
                 <tr>
                     <td colspan="5" class="text-center py-4 text-muted">
                         <i class="bi bi-people fs-1 d-block mb-2"></i>
-                        Nenhum morador cadastrado ainda.
+                        {% if busca is defined and busca %}
+                            Nenhum morador encontrado para a busca "{{ busca }}".
+                        {% else %}
+                            Nenhum morador cadastrado ainda.
+                        {% endif %}
                     </td>
                 </tr>
                 {% endfor %}

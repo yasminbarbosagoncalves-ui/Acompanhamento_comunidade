@@ -131,14 +131,78 @@ def logout():
     session.clear()
     return redirect(url_for("login"))
 
+@app.route("/perfil")
+def perfil():
+    if "usuario_id" not in session:
+        return redirect(url_for("login"))
+        
+    # Busca os dados atualizados do usuário logado
+    usuario = buscar_um(
+        "SELECT id_usuario, nome, login, perfil FROM usuario WHERE id_usuario = %s",
+        (session["usuario_id"],)
+    )
+    
+    if not usuario:
+        return "Usuário não encontrado.", 404
+        
+    return render_template("perfil.html", usuario=usuario)
+
 # =====================================================
 # USUÁRIOS
 # =====================================================
 
+# --- SUBSTITUA A SUA ROTA listar_usuarios POR ESTA ---
 @app.route("/usuarios")
 def listar_usuarios():
-    usuarios = consultar_sql("SELECT id_usuario, nome, login, perfil FROM usuario ORDER BY id_usuario")
-    return render_template("usuario.html", usuarios=usuarios)
+    busca = request.args.get("busca", "").strip()
+    
+    sql = "SELECT id_usuario, nome, login, perfil FROM usuario"
+    parametros = ()
+    
+    if busca:
+        sql += " WHERE nome LIKE %s OR login LIKE %s"
+        parametros = (f"%{busca}%", f"%{busca}%")
+        
+    sql += " ORDER BY id_usuario"
+    
+    usuarios = consultar_sql(sql, parametros)
+    return render_template("usuario.html", usuarios=usuarios, busca=busca)
+
+# --- ADICIONE ESTA ROTA LOGO ABAIXO DO cadastrar_usuario ---
+@app.route("/usuarios/editar/<int:id>", methods=["GET", "POST"])
+def editar_usuario(id):
+    usuario = buscar_um("SELECT * FROM usuario WHERE id_usuario = %s", (id,))
+    
+    if not usuario:
+        return "Usuário não encontrado.", 404
+
+    if request.method == "POST":
+        nome = request.form.get("nome", "").strip()
+        login = request.form.get("login", "").strip()
+        senha = request.form.get("senha", "")
+        perfil = request.form.get("perfil", "").strip()
+        
+        # Se a senha foi preenchida, atualiza com o hash. Se ficou vazia, mantém a antiga.
+        if senha:
+            senha_hash = generate_password_hash(senha)
+            erro = executar_sql(
+                "UPDATE usuario SET nome=%s, login=%s, senha=%s, perfil=%s WHERE id_usuario=%s", 
+                (nome, login, senha_hash, perfil, id)
+            )
+        else:
+            erro = executar_sql(
+                "UPDATE usuario SET nome=%s, login=%s, perfil=%s WHERE id_usuario=%s", 
+                (nome, login, perfil, id)
+            )
+        
+        if erro:
+            flash(f'Erro ao atualizar: {erro}', 'danger')
+        else:
+            flash('Usuário atualizado com sucesso!', 'success')
+            
+        return redirect(url_for("listar_usuarios"))
+        
+    return render_template("usuario_form.html", usuario=usuario)
 
 @app.route("/usuarios/novo", methods=["GET", "POST"])
 def cadastrar_usuario():
@@ -174,13 +238,23 @@ def cadastrar_usuario():
 
 @app.route("/moradores")
 def listar_moradores():
-    moradores = consultar_sql("""
+    busca = request.args.get("busca", "").strip()
+
+    sql = """
         SELECT m.*, u.nome as nome_usuario 
         FROM morador m 
         JOIN usuario u ON m.id_usuario = u.id_usuario
-        ORDER BY m.id_morador
-    """)
-    return render_template("morador.html", moradores=moradores)
+    """
+    parametros = ()
+    
+    if busca:
+        sql += " WHERE m.nome LIKE %s OR m.cpf LIKE %s"
+        parametros = (f"%{busca}%", f"%{busca}%")
+        
+    sql += " ORDER BY m.id_morador"
+    
+    moradores = consultar_sql(sql, parametros)
+    return render_template("morador.html", moradores=moradores, busca=busca)
 
 @app.route("/moradores/novo", methods=["GET", "POST"])
 def cadastrar_morador():
@@ -213,6 +287,56 @@ def cadastrar_morador():
         return redirect(url_for("listar_moradores"))
         
     return render_template("morador_form.html", usuarios=usuarios)
+
+@app.route("/moradores/editar/<int:id>", methods=["GET", "POST"])
+def editar_morador(id):
+    morador = buscar_um("SELECT * FROM morador WHERE id_morador = %s", (id,))
+    usuarios = consultar_sql("SELECT id_usuario, nome FROM usuario ORDER BY nome")
+    
+    if not morador:
+        return "Morador não encontrado.", 404
+
+    if request.method == "POST":
+        id_usuario = request.form.get("id_usuario")
+        nome = request.form.get("nome", "").strip()
+        cpf = request.form.get("cpf", "").strip()
+        telefone = request.form.get("telefone", "").strip()
+        email = request.form.get("email", "").strip()
+        endereco = request.form.get("endereco", "").strip()
+        
+        if not id_usuario or not nome or not cpf:
+            flash('Preencha os campos obrigatórios.', 'danger')
+            return redirect(url_for("editar_morador", id=id))
+            
+        erro = executar_sql("""
+            UPDATE morador 
+            SET id_usuario = %s, nome = %s, cpf = %s, telefone = %s, email = %s, endereco = %s
+            WHERE id_morador = %s
+        """, (id_usuario, nome, cpf, telefone or None, email or None, endereco or None, id))
+        
+        if erro:
+            flash(f'Erro ao atualizar: {erro}', 'danger')
+            return redirect(url_for("editar_morador", id=id))
+            
+        flash('Morador atualizado com sucesso!', 'success')
+        return redirect(url_for("listar_moradores"))
+        
+    return render_template("morador_form.html", usuarios=usuarios, morador=morador)
+
+@app.route("/moradores/excluir/<int:id>")
+def excluir_morador(id):
+    # Busca o ID do usuário vinculado antes de apagar
+    morador = buscar_um("SELECT id_usuario FROM morador WHERE id_morador = %s", (id,))
+    
+    if morador:
+        # Apaga o morador
+        executar_sql("DELETE FROM morador WHERE id_morador = %s", (id,))
+        # Apaga o usuário vinculado (opcional, mas recomendado)
+        executar_sql("DELETE FROM usuario WHERE id_usuario = %s", (morador['id_usuario'],))
+        
+        flash('Morador excluído com sucesso!', 'success')
+        
+    return redirect(url_for("listar_moradores"))
 
 # =====================================================
 # SETORES
@@ -335,17 +459,80 @@ def cadastrar_funcionario():
 # SOLICITAÇÕES
 # =====================================================
 
+# --- SUBSTITUA SUA ROTA ATUAL DE LISTAR POR ESTA ---
 @app.route("/solicitacoes")
 def listar_solicitacoes():
-    solicitacoes = consultar_sql("""
+    busca = request.args.get("busca", "").strip()
+
+    sql = """
         SELECT so.*, m.nome AS morador, c.nome_categoria AS categoria, se.nome_setor AS setor
         FROM solicitacao so
         JOIN morador m ON so.id_morador = m.id_morador
         JOIN categoria c ON so.id_categoria = c.id_categoria
         JOIN setor se ON so.id_setor = se.id_setor
-        ORDER BY so.id_solicitacao
-    """)
-    return render_template("solicitacao.html", solicitacoes=solicitacoes)
+    """
+    parametros = ()
+    
+    if busca:
+        sql += " WHERE so.protocolo LIKE %s OR m.nome LIKE %s"
+        parametros = (f"%{busca}%", f"%{busca}%")
+        
+    sql += " ORDER BY so.id_solicitacao DESC" # Mais recentes primeiro
+    
+    solicitacoes = consultar_sql(sql, parametros)
+    return render_template("solicitacao.html", solicitacoes=solicitacoes, busca=busca)
+
+
+# --- ADICIONE ESTAS DUAS ROTAS LOGO ABAIXO DO CADASTRAR_SOLICITACAO ---
+@app.route("/solicitacoes/editar/<int:id>", methods=["GET", "POST"])
+def editar_solicitacao(id):
+    # Busca a solicitação e as listas para os selects
+    solicitacao = buscar_um("SELECT * FROM solicitacao WHERE id_solicitacao = %s", (id,))
+    moradores = consultar_sql("SELECT id_morador, nome FROM morador ORDER BY nome")
+    categorias = consultar_sql("SELECT id_categoria, nome_categoria FROM categoria ORDER BY nome_categoria")
+    setores = consultar_sql("SELECT id_setor, nome_setor FROM setor ORDER BY nome_setor")
+    
+    if not solicitacao:
+        return "Solicitação não encontrada.", 404
+
+    if request.method == "POST":
+        id_morador = request.form.get("id_morador")
+        id_categoria = request.form.get("id_categoria")
+        id_setor = request.form.get("id_setor")
+        protocolo = request.form.get("protocolo", "").strip()
+        descricao = request.form.get("descricao", "").strip()
+        localizacao = request.form.get("localizacao", "").strip()
+        data_registro = request.form.get("data_registro")
+        status = request.form.get("status", "").strip()
+        
+        erro = executar_sql("""
+            UPDATE solicitacao 
+            SET id_morador=%s, id_categoria=%s, id_setor=%s, protocolo=%s, descricao=%s, localizacao=%s, data_registro=%s, status=%s
+            WHERE id_solicitacao=%s
+        """, (id_morador, id_categoria, id_setor, protocolo, descricao, localizacao, data_registro, status, id))
+        
+        if erro:
+            flash(f'Erro ao atualizar: {erro}', 'danger')
+            return redirect(url_for("editar_solicitacao", id=id))
+            
+        flash('Solicitação atualizada com sucesso!', 'success')
+        return redirect(url_for("listar_solicitacoes"))
+        
+    return render_template("solicitacao_form.html", 
+                           solicitacao=solicitacao, 
+                           moradores=moradores, 
+                           categorias=categorias, 
+                           setores=setores)
+
+@app.route("/solicitacoes/excluir/<int:id>")
+def excluir_solicitacao(id):
+    # Primeiro apaga o histórico atrelado (para não dar erro de Foreign Key)
+    executar_sql("DELETE FROM historico WHERE id_solicitacao = %s", (id,))
+    # Depois apaga a solicitação
+    executar_sql("DELETE FROM solicitacao WHERE id_solicitacao = %s", (id,))
+    
+    flash('Solicitação e seu histórico foram excluídos!', 'success')
+    return redirect(url_for("listar_solicitacoes"))
 
 @app.route("/solicitacoes/novo", methods=["GET", "POST"])
 def cadastrar_solicitacao():
@@ -465,8 +652,59 @@ def cadastrar_historico():
 
 @app.route("/produtos")
 def listar_produtos():
-    produtos = consultar_sql("SELECT * FROM produtos ORDER BY id")
-    return render_template("produtos.html", produtos=produtos)
+    busca = request.args.get("busca", "").strip()
+    sql = "SELECT * FROM produtos"
+    parametros = ()
+    
+    if busca:
+        sql += " WHERE nome LIKE %s OR categoria LIKE %s"
+        parametros = (f"%{busca}%", f"%{busca}%")
+        
+    sql += " ORDER BY id DESC"
+    produtos = consultar_sql(sql, parametros)
+    return render_template("produtos.html", produtos=produtos, busca=busca)
+
+@app.route("/produtos/editar/<int:id>", methods=["GET", "POST"])
+def editar_produto(id):
+    produto = buscar_um("SELECT * FROM produtos WHERE id = %s", (id,))
+    if not produto:
+        return "Produto não encontrado.", 404
+
+    if request.method == "POST":
+        nome = request.form.get("nome", "").strip()
+        descricao = request.form.get("descricao", "").strip()
+        preco = request.form.get("preco", "0.00")
+        quantidade = request.form.get("quantidade", "0")
+        categoria = request.form.get("categoria", "").strip()
+        imagem = request.form.get("imagem", "").strip()
+        status = request.form.get("status", "ativo")
+        
+        try:
+            preco_dec = Decimal(preco)
+            qtd_int = int(quantidade)
+        except (InvalidOperation, ValueError):
+            flash('Preço ou quantidade inválidos.', 'danger')
+            return redirect(url_for("editar_produto", id=id))
+            
+        erro = executar_sql("""
+            UPDATE produtos SET nome=%s, descricao=%s, preco=%s, quantidade=%s, categoria=%s, imagem=%s, status=%s
+            WHERE id=%s
+        """, (nome, descricao or None, preco_dec, qtd_int, categoria or None, imagem or None, status, id))
+        
+        if erro:
+            flash(f'Erro ao atualizar: {erro}', 'danger')
+        else:
+            flash('Produto atualizado com sucesso!', 'success')
+            
+        return redirect(url_for("listar_produtos"))
+        
+    return render_template("produtos_form.html", produto=produto)
+
+@app.route("/produtos/excluir/<int:id>")
+def excluir_produto(id):
+    executar_sql("DELETE FROM produtos WHERE id = %s", (id,))
+    flash('Produto excluído com sucesso!', 'success')
+    return redirect(url_for("listar_produtos"))
 
 @app.route("/produtos/novo", methods=["GET", "POST"])
 def cadastrar_produto():

@@ -2,73 +2,63 @@
 
 {% block conteudo %}
 
-<!-- CABEÇALHO DA PÁGINA -->
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <h2 class="text-dark-teal fw-bold mb-1">Cadastrar Novo Usuário</h2>
-        <p class="text-muted mb-0">Preencha os dados abaixo para criar um novo acesso ao sistema</p>
+        <h2 class="text-dark-teal fw-bold mb-1">{{ 'Editar Usuário' if usuario is defined and usuario else 'Cadastrar Novo Usuário' }}</h2>
+        <p class="text-muted mb-0">{{ 'Atualize os dados e permissões do acesso' if usuario is defined and usuario else 'Preencha os dados abaixo para criar um novo acesso ao sistema' }}</p>
     </div>
     <a href="{{ url_for('listar_usuarios') }}" class="btn btn-outline-secondary">
         <i class="bi bi-arrow-left me-2"></i>Voltar
     </a>
 </div>
 
-<!-- CONTAINER DO FORMULÁRIO -->
 <div class="card card-custom p-4">
-    <form method="POST" action="{{ url_for('cadastrar_usuario') }}">
+    <form method="POST" action="{{ url_for('editar_usuario', id=usuario.id_usuario) if usuario is defined and usuario else url_for('cadastrar_usuario') }}">
         
-        <!-- LINHA 1: Nome Completo -->
         <div class="row g-4 mb-3">
             <div class="col-md-12">
                 <label class="form-label fw-semibold">Nome Completo <span class="text-danger">*</span></label>
-                <input type="text" name="nome" class="form-control" placeholder="Ex: João da Silva" required autofocus>
+                <input type="text" name="nome" class="form-control" placeholder="Ex: João da Silva" value="{{ usuario.nome if usuario is defined and usuario else '' }}" required>
             </div>
         </div>
 
-        <!-- LINHA 2: Login e Senha -->
         <div class="row g-4 mb-3">
             <div class="col-md-6">
                 <label class="form-label fw-semibold">Login de Acesso <span class="text-danger">*</span></label>
                 <div class="input-group">
                     <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-at"></i></span>
-                    <input type="text" name="login" class="form-control border-start-0" placeholder="Ex: joao.silva" required>
+                    <input type="text" name="login" class="form-control border-start-0" placeholder="Ex: joao.silva" value="{{ usuario.login if usuario is defined and usuario else '' }}" required>
                 </div>
             </div>
             <div class="col-md-6">
-                <label class="form-label fw-semibold">Senha <span class="text-danger">*</span></label>
+                <label class="form-label fw-semibold">Senha {{ '' if usuario is defined and usuario else '*' }}</label>
                 <div class="input-group">
                     <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-lock"></i></span>
-                    <input type="password" name="senha" class="form-control border-start-0" placeholder="Digite uma senha forte" required>
+                    <input type="password" name="senha" class="form-control border-start-0" placeholder="{{ 'Deixe em branco para manter a atual' if usuario is defined and usuario else 'Digite uma senha forte' }}" {{ 'required' if not (usuario is defined and usuario) else '' }}>
                 </div>
             </div>
         </div>
 
-        <!-- LINHA 3: Perfil de Acesso -->
         <div class="row g-4 mb-4">
             <div class="col-md-6">
                 <label class="form-label fw-semibold">Perfil de Acesso <span class="text-danger">*</span></label>
                 <select name="perfil" class="form-select" required>
-                    <option value="" disabled selected>Selecione o perfil...</option>
-                    <option value="Administrador">Administrador</option>
-                    <option value="Atendente">Atendente</option>
-                    <option value="Engenheira">Engenheira</option>
-                    <option value="Morador">Morador</option>
+                    <option value="" disabled {{ 'selected' if not (usuario is defined and usuario) else '' }}>Selecione o perfil...</option>
+                    <option value="Administrador" {{ 'selected' if usuario is defined and usuario and usuario.perfil == 'Administrador' else '' }}>Administrador</option>
+                    <option value="Atendente" {{ 'selected' if usuario is defined and usuario and usuario.perfil == 'Atendente' else '' }}>Atendente</option>
+                    <option value="Engenheira" {{ 'selected' if usuario is defined and usuario and usuario.perfil == 'Engenheira' else '' }}>Engenheira</option>
+                    <option value="Morador" {{ 'selected' if usuario is defined and usuario and usuario.perfil == 'Morador' else '' }}>Morador</option>
                 </select>
-                <div class="form-text text-muted mt-2">
-                    <i class="bi bi-info-circle me-1"></i> O perfil define quais telas e ações o usuário poderá acessar.
-                </div>
             </div>
         </div>
 
-        <!-- BOTÕES DE AÇÃO -->
         <div class="d-flex justify-content-end gap-3 mt-4 pt-3 border-top">
             <a href="{{ url_for('listar_usuarios') }}" class="btn btn-light border px-4">Cancelar</a>
             <button type="submit" class="btn btn-teal px-5">
-                <i class="bi bi-check-lg me-2"></i>Salvar Usuário
+                <i class="bi bi-check-lg me-2"></i>{{ 'Atualizar' if usuario is defined and usuario else 'Salvar Usuário' }}
             </button>
         </div>
 
     </form>
 </div>
-
 {% endblock %}

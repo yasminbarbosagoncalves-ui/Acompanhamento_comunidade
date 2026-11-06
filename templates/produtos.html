@@ -2,6 +2,7 @@
 
 {% block conteudo %}
 
+<!-- CABEÇALHO DA PÁGINA -->
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
         <h2 class="text-dark-teal fw-bold mb-1">Produtos e Estoque</h2>
@@ -12,6 +13,21 @@
     </a>
 </div>
 
+<!-- BARRA DE PESQUISA -->
+<div class="card card-custom p-3 mb-4">
+    <form method="GET" action="{{ url_for('listar_produtos') }}" class="d-flex gap-2">
+        <div class="input-group">
+            <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
+            <input type="text" name="busca" class="form-control border-start-0" placeholder="Pesquisar por nome ou categoria..." value="{{ busca|default('') }}">
+            <button class="btn btn-teal px-4" type="submit">Buscar</button>
+        </div>
+        {% if busca is defined and busca %}
+            <a href="{{ url_for('listar_produtos') }}" class="btn btn-outline-secondary">Limpar</a>
+        {% endif %}
+    </form>
+</div>
+
+<!-- CONTAINER DA TABELA -->
 <div class="card card-custom p-4">
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">
@@ -43,7 +59,6 @@
                     <td><span class="badge bg-light text-dark border">{{ produto.categoria }}</span></td>
                     <td class="fw-bold text-success">R$ {{ "%.2f"|format(produto.preco) }}</td>
                     <td>
-                        <!-- Lógica para destacar estoque baixo -->
                         {% if produto.quantidade <= 10 %}
                             <span class="badge bg-danger rounded-pill px-3">{{ produto.quantidade }} un.</span>
                         {% else %}
@@ -58,15 +73,26 @@
                         {% endif %}
                     </td>
                     <td class="text-center">
-                        <button class="btn btn-sm btn-light text-teal border-0"><i class="bi bi-pencil-square fs-5"></i></button>
-                        <button class="btn btn-sm btn-light text-danger border-0"><i class="bi bi-trash fs-5"></i></button>
+                        <!-- BOTÃO EDITAR -->
+                        <a href="{{ url_for('editar_produto', id=produto.id) }}" class="btn btn-sm btn-light text-teal border-0" title="Editar">
+                            <i class="bi bi-pencil-square fs-5"></i>
+                        </a>
+                        
+                        <!-- BOTÃO EXCLUIR -->
+                        <a href="{{ url_for('excluir_produto', id=produto.id) }}" class="btn btn-sm btn-light text-danger border-0" title="Excluir" onclick="return confirm('Tem certeza que deseja excluir o produto {{ produto.nome }}?')">
+                            <i class="bi bi-trash fs-5"></i>
+                        </a>
                     </td>
                 </tr>
                 {% else %}
                 <tr>
                     <td colspan="6" class="text-center py-4 text-muted">
                         <i class="bi bi-box fs-1 d-block mb-2"></i>
-                        Nenhum produto cadastrado.
+                        {% if busca is defined and busca %}
+                            Nenhum produto encontrado para "{{ busca }}".
+                        {% else %}
+                            Nenhum produto cadastrado ainda.
+                        {% endif %}
                     </td>
                 </tr>
                 {% endfor %}
