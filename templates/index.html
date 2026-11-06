@@ -1,41 +1,192 @@
 {% extends "base.html" %}
 
 {% block conteudo %}
-<!-- Imagem de Banner -->
-<img src="{{ url_for('static', filename='img/banner.jpg') }}" alt="Banner" class="imagem-banner">
 
-<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-    <h2>Visão Geral do Sistema</h2>
-    <!-- Botão de Sair -->
-    <a href="{{ url_for('logout') }}" style="background: #e74c3c; color: white; padding: 8px 15px; text-decoration: none; border-radius: 5px; font-weight: bold;">Sair</a>
-</div>
-
-<!-- Container dos Cards -->
-<div class="cards-container">
+<!-- BANNER DE BOAS-VINDAS (HERO) -->
+<div class="card card-custom p-0 border-0 mb-4 overflow-hidden position-relative shadow-sm" 
+     style="background: linear-gradient(to right, rgba(9, 58, 76, 0.95), rgba(9, 58, 76, 0.4)), url('https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b?q=80&w=2070&auto=format&fit=crop') center/cover; height: 280px; border-radius: 16px;">
     
-    <!-- Card 1 -->
-    <div class="card">
-        <h3>Moradores Cadastrados</h3>
-        <div class="numero">{{ moradores }}</div>
+    <div class="position-absolute top-50 start-0 translate-middle-y ps-5 text-white" style="max-width: 650px;">
+        <span class="badge bg-teal mb-2 px-3 py-2 rounded-pill">Bem-vindo ao Sistema</span>
+        <h1 class="fw-bold mb-3 display-6">Sua solicitação, mais perto de uma solução.</h1>
+        <p class="fs-6 mb-4" style="color: rgba(255,255,255,0.8);">
+            Acompanhe de perto as melhorias da nossa cidade e resolva os problemas da comunidade de forma rápida e transparente.
+        </p>
+        <a href="{{ url_for('cadastrar_solicitacao') }}" class="btn btn-teal btn-lg px-4 shadow">
+            <i class="bi bi-plus-circle me-2"></i>Fazer Nova Solicitação
+        </a>
     </div>
-
-    <!-- Card 2 -->
-    <div class="card">
-        <h3>Solicitações Abertas</h3>
-        <div class="numero">{{ solicitacoes }}</div>
-    </div>
-
-    <!-- Card 3 -->
-    <div class="card">
-        <h3>Produtos em Estoque</h3>
-        <div class="numero">{{ produtos }}</div>
-    </div>
-
-    <!-- Card 4 -->
-    <div class="card">
-        <h3>Mensagens Recebidas</h3>
-        <div class="numero">{{ mensagens }}</div>
-    </div>
-
 </div>
+
+<!-- LINHA DE CARTÕES DE RESUMO -->
+<div class="row g-4 mb-4">
+    <!-- Moradores -->
+    <div class="col-md-6 col-xl-3">
+        <div class="card card-custom p-4 h-100">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="text-muted mb-1 fw-semibold">Moradores</h6>
+                    <h2 class="mb-0 fw-bold text-dark-teal">{{ moradores }}</h2>
+                </div>
+                <div class="bg-primary p-3 rounded-circle text-white shadow-sm">
+                    <i class="bi bi-people fs-3"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Solicitações -->
+    <div class="col-md-6 col-xl-3">
+        <div class="card card-custom p-4 h-100">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="text-muted mb-1 fw-semibold">Solicitações</h6>
+                    <h2 class="mb-0 fw-bold text-dark-teal">{{ solicitacoes }}</h2>
+                </div>
+                <div class="bg-teal p-3 rounded-circle text-white shadow-sm">
+                    <i class="bi bi-file-earmark-text fs-3"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Produtos -->
+    <div class="col-md-6 col-xl-3">
+        <div class="card card-custom p-4 h-100">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="text-muted mb-1 fw-semibold">Produtos</h6>
+                    <h2 class="mb-0 fw-bold text-dark-teal">{{ produtos }}</h2>
+                </div>
+                <div class="bg-warning p-3 rounded-circle text-white shadow-sm">
+                    <i class="bi bi-box-seam fs-3"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mensagens -->
+    <div class="col-md-6 col-xl-3">
+        <div class="card card-custom p-4 h-100">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="text-muted mb-1 fw-semibold">Mensagens</h6>
+                    <h2 class="mb-0 fw-bold text-dark-teal">{{ mensagens }}</h2>
+                </div>
+                <div class="bg-danger p-3 rounded-circle text-white shadow-sm">
+                    <i class="bi bi-envelope fs-3"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- GRÁFICO DE STATUS -->
+<div class="row g-4 mb-4">
+    <!-- Gráfico de Rosca -->
+    <div class="col-md-5">
+        <div class="card card-custom p-4 h-100">
+            <h5 class="text-dark-teal fw-bold mb-3"><i class="bi bi-pie-chart me-2"></i>Solicitações por Status</h5>
+            <div class="d-flex justify-content-center align-items-center" style="height: 200px;">
+                <canvas id="graficoStatus"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Resumo Rápido à direita do Gráfico -->
+    <div class="col-md-7">
+        <div class="card card-custom p-4 h-100 d-flex flex-column justify-content-center">
+            <h5 class="text-dark-teal fw-bold mb-4"><i class="bi bi-bar-chart-steps me-2"></i>Resumo Operacional</h5>
+            <div class="row text-center">
+                <div class="col-6 mb-3">
+                    <h3 class="fw-bold text-info mb-1">{{ dados_grafico.get('Recebida', 0) }}</h3>
+                    <span class="text-muted small text-uppercase fw-semibold">Recebidas</span>
+                </div>
+                <div class="col-6 mb-3">
+                    <h3 class="fw-bold text-warning mb-1">{{ dados_grafico.get('Em Análise', 0) }}</h3>
+                    <span class="text-muted small text-uppercase fw-semibold">Em Análise</span>
+                </div>
+                <div class="col-6">
+                    <h3 class="fw-bold text-primary mb-1">{{ dados_grafico.get('Em Execução', 0) }}</h3>
+                    <span class="text-muted small text-uppercase fw-semibold">Em Execução</span>
+                </div>
+                <div class="col-6">
+                    <h3 class="fw-bold text-success mb-1">{{ dados_grafico.get('Concluída', 0) }}</h3>
+                    <span class="text-muted small text-uppercase fw-semibold">Concluídas</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ÁREA DE AÇÕES RÁPIDAS -->
+<div class="row g-4">
+    <div class="col-md-8">
+        <div class="card card-custom p-4 h-100">
+            <h5 class="mb-4 text-dark-teal fw-bold"><i class="bi bi-lightning-charge me-2"></i>Ações Rápidas</h5>
+            <p class="text-muted mb-4">O que você deseja fazer hoje?</p>
+            
+            <div class="d-flex gap-3 flex-wrap">
+                <a href="{{ url_for('cadastrar_solicitacao') }}" class="btn btn-teal"><i class="bi bi-plus-lg me-2"></i>Nova Solicitação</a>
+                <a href="{{ url_for('cadastrar_morador') }}" class="btn btn-outline-secondary"><i class="bi bi-person-plus me-2"></i>Novo Morador</a>
+                <a href="{{ url_for('cadastrar_mensagem') }}" class="btn btn-outline-secondary"><i class="bi bi-chat-dots me-2"></i>Enviar Mensagem</a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Banner Lateral Verde -->
+    <div class="col-md-4">
+        <div class="card card-custom p-4 h-100 text-white" style="background: linear-gradient(135deg, #0f8b8d, #093a4c) !important; border-left: none;">
+            <h5 class="mb-2 fw-bold">Bem-vindo de volta!</h5>
+            <p class="mb-4" style="color: rgba(255,255,255,0.7);">Seu sistema está atualizado. Gerencie as solicitações da comunidade com agilidade.</p>
+            <i class="bi bi-shield-check fs-1 mt-auto"></i>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
+
+<!-- Script do Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Pega os dados do Python e transforma em JSON para o JavaScript ler
+    const dados = {{ dados_grafico | tojson }};
+    
+    // Cores para cada status
+    const cores = {
+        'Recebida': '#0dcaf0',
+        'Em Análise': '#ffc107',
+        'Em Execução': '#0d6efd',
+        'Concluída': '#198754'
+    };
+
+    // Prepara os rótulos (nomes) e os valores (quantidades)
+    const labels = Object.keys(dados);
+    const valores = Object.values(dados);
+    const backgroundColors = labels.map(label => cores[label] || '#6c757d');
+
+    const ctx = document.getElementById('graficoStatus').getContext('2d');
+    
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: valores,
+                backgroundColor: backgroundColors,
+                borderWidth: 2,
+                borderColor: '#ffffff',
+                hoverOffset: 4
+            }]
+        },
+        options: {
+            cutout: '70%',
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            maintainAspectRatio: false
+        }
+    });
+</script>

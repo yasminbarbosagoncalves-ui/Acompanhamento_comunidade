@@ -1,24 +1,78 @@
 {% extends "base.html" %}
+
 {% block conteudo %}
-<div class="table-container">
-    <h2>Solicitações Cadastradas</h2>
-    <p><a href="/solicitacoes/novo"><button>+ Cadastrar nova solicitação</button></a></p>
-    <table>
-        <thead>
-            <tr><th>ID</th><th>Protocolo</th><th>Morador</th><th>Categoria</th><th>Setor</th><th>Status</th></tr>
-        </thead>
-        <tbody>
-            {% for s in solicitacoes %}
-            <tr>
-                <td>{{ s.id_solicitacao }}</td>
-                <td>{{ s.protocolo }}</td>
-                <td>{{ s.morador }}</td>
-                <td>{{ s.categoria }}</td>
-                <td>{{ s.setor }}</td>
-                <td>{{ s.status }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+
+<!-- CABEÇALHO DA PÁGINA -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="text-dark-teal fw-bold mb-1">Solicitações</h2>
+        <p class="text-muted mb-0">Gerencie os pedidos e chamados da comunidade</p>
+    </div>
+    <a href="{{ url_for('cadastrar_solicitacao') }}" class="btn btn-teal">
+        <i class="bi bi-plus-lg me-2"></i>Nova Solicitação
+    </a>
 </div>
+
+<!-- CONTAINER DA TABELA -->
+<div class="card card-custom p-4">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Protocolo</th>
+                    <th>Morador</th>
+                    <th>Categoria</th>
+                    <th>Setor</th>
+                    <th>Status</th>
+                    <th class="text-center">Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in solicitacoes %}
+                <tr>
+                    <td class="fw-bold text-dark-teal">{{ s.protocolo }}</td>
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-person-circle fs-5 text-muted me-2"></i>
+                            {{ s.morador }}
+                        </div>
+                    </td>
+                    <td>{{ s.categoria }}</td>
+                    <td>{{ s.setor }}</td>
+                    <td>
+                        {% if s.status == 'Recebida' %}
+                            <span class="badge bg-info text-dark rounded-pill px-3 py-2">Recebida</span>
+                        {% elif s.status == 'Em Análise' %}
+                            <span class="badge bg-warning text-dark rounded-pill px-3 py-2">Em Análise</span>
+                        {% elif s.status == 'Em Execução' %}
+                            <span class="badge bg-primary rounded-pill px-3 py-2">Em Execução</span>
+                        {% elif s.status == 'Concluída' %}
+                            <span class="badge bg-success rounded-pill px-3 py-2">Concluída</span>
+                        {% else %}
+                            <span class="badge bg-secondary rounded-pill px-3 py-2">{{ s.status }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-center">
+                        <!-- BOTÃO DO OLHINHO FUNCIONANDO -->
+                        <a href="{{ url_for('detalhes_solicitacao', id=s.id_solicitacao) }}" class="btn btn-sm btn-light text-teal border-0" title="Ver Detalhes">
+                            <i class="bi bi-eye fs-5"></i>
+                        </a>
+                        <button class="btn btn-sm btn-light text-danger border-0" title="Excluir">
+                            <i class="bi bi-trash fs-5"></i>
+                        </button>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" class="text-center py-4 text-muted">
+                        <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                        Nenhuma solicitação cadastrada ainda.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
 {% endblock %}

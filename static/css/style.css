@@ -13,77 +13,33 @@
 body {
     background-color: #f4f7f6; /* Fundo cinza bem clarinho */
     color: #333;
-    display: flex;
-    min-height: 100vh;
-}
-
-a {
-    text-decoration: none;
-    color: inherit;
 }
 
 /* =========================================
-   MENU LATERAL (SIDEBAR)
+   MENU LATERAL (SIDEBAR) - INTEGRADO COM BOOTSTRAP
 ========================================= */
 .sidebar {
-    width: 260px;
-    background-color: #093a4c; /* Azul escuro/petróleo */
-    color: #ffffff;
-    display: flex;
-    flex-direction: column;
-    position: fixed;
-    height: 100vh;
-    left: 0;
-    top: 0;
+    background-color: #093a4c !important; /* Azul escuro/petróleo */
     box-shadow: 2px 0 10px rgba(0,0,0,0.1);
 }
 
-.sidebar h2 {
-    padding: 25px 20px;
-    font-size: 1.2rem;
-    font-weight: 600;
-    border-bottom: 1px solid rgba(255,255,255,0.1);
-    margin-bottom: 10px;
-    text-align: center;
-    letter-spacing: 1px;
-}
-
-.sidebar ul {
-    list-style: none;
-    padding: 10px;
-    overflow-y: auto;
-}
-
-.sidebar li {
-    margin-bottom: 5px;
-}
-
-.sidebar a {
-    display: flex;
-    align-items: center;
-    padding: 12px 15px;
+.sidebar .nav-link {
     border-radius: 8px;
-    font-size: 0.95rem;
     transition: all 0.3s ease;
-    color: #cbdbe1;
+    padding: 12px 15px;
+    margin-bottom: 4px;
 }
 
-.sidebar a:hover, .sidebar a.active {
-    background-color: #0c546b;
-    color: #ffffff;
+.sidebar .nav-link:hover, 
+.sidebar .active-link {
+    background-color: #0c546b !important;
+    color: #ffffff !important;
     font-weight: 500;
 }
 
 /* =========================================
-   CONTEÚDO PRINCIPAL
+   CABEÇALHO E TÍTULOS
 ========================================= */
-.main-content {
-    margin-left: 260px;
-    padding: 30px 40px;
-    width: calc(100% - 260px);
-}
-
-/* Cabeçalho da Página */
 .header {
     display: flex;
     justify-content: space-between;
@@ -97,116 +53,83 @@ a {
     font-weight: 600;
 }
 
-/* =========================================
-   CARDS DO DASHBOARD (Se houver)
-========================================= */
-.cards-container {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 20px;
-    margin-bottom: 30px;
-}
+/* Classes utilitárias de cor baseadas no seu CSS */
+.text-dark-teal { color: #093a4c !important; }
+.bg-teal { background-color: #17a2b8 !important; }
 
-.card {
+/* =========================================
+   CARDS DO DASHBOARD
+========================================= */
+.card-custom {
     background: #ffffff;
-    padding: 20px;
     border-radius: 12px;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
     border-left: 5px solid #17a2b8; /* Detalhe verde/azul */
-    transition: transform 0.3s ease;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    border-top: none;
+    border-right: none;
+    border-bottom: none;
 }
 
-.card:hover {
+.card-custom:hover {
     transform: translateY(-5px);
-}
-
-.card h3 {
-    font-size: 1rem;
-    color: #666;
-    margin-bottom: 10px;
-}
-
-.card .numero {
-    font-size: 2rem;
-    font-weight: 700;
-    color: #093a4c;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
 }
 
 /* =========================================
    CONTAINER DE TABELAS E FORMULÁRIOS
 ========================================= */
-.table-container, .form-container {
+.table-container, .form-container, .card-body {
     background: #ffffff;
     padding: 25px;
     border-radius: 12px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
     margin-bottom: 20px;
-}
-
-.table-container h2, .form-container h2 {
-    color: #093a4c;
-    font-size: 1.3rem;
-    margin-bottom: 20px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid #eee;
+    border: none;
 }
 
 /* =========================================
    ESTILO DAS TABELAS
 ========================================= */
-table {
+.table {
     width: 100%;
     border-collapse: collapse;
     margin-top: 10px;
 }
 
-th, td {
-    padding: 14px 15px;
-    text-align: left;
-    border-bottom: 1px solid #edf2f7;
-}
-
-th {
+.table th {
     background-color: #f8fafc;
     color: #093a4c;
     font-weight: 600;
     font-size: 0.9rem;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    padding: 14px 15px;
+    border-bottom: 2px solid #edf2f7;
 }
 
-tbody tr {
-    transition: background-color 0.2s ease;
-}
-
-tbody tr:hover {
-    background-color: #f1f5f9;
-}
-
-td {
+.table td {
+    padding: 14px 15px;
+    vertical-align: middle;
+    border-bottom: 1px solid #edf2f7;
     font-size: 0.95rem;
     color: #4a5568;
+}
+
+.table tbody tr:hover {
+    background-color: #f1f5f9;
 }
 
 /* =========================================
    FORMULÁRIOS
 ========================================= */
-.form-group {
-    margin-bottom: 20px;
-}
-
-.form-group label {
-    display: block;
-    margin-bottom: 8px;
+.form-label {
     font-weight: 500;
     color: #4a5568;
     font-size: 0.95rem;
 }
 
-.form-group input, 
-.form-group select, 
-.form-group textarea {
-    width: 100%;
+.form-control, .form-select {
     padding: 12px 15px;
     border: 1px solid #cbd5e1;
     border-radius: 8px;
@@ -216,24 +139,17 @@ td {
     transition: all 0.3s ease;
 }
 
-.form-group input:focus, 
-.form-group select:focus, 
-.form-group textarea:focus {
+.form-control:focus, .form-select:focus {
     outline: none;
     border-color: #17a2b8;
     background-color: #fff;
     box-shadow: 0 0 0 3px rgba(23, 162, 184, 0.15);
 }
 
-.form-group textarea {
-    min-height: 120px;
-    resize: vertical;
-}
-
 /* =========================================
    BOTÕES
 ========================================= */
-button, .btn {
+.btn-teal {
     background-color: #17a2b8; /* Cor de destaque (Verde água) */
     color: #ffffff;
     border: none;
@@ -243,22 +159,18 @@ button, .btn {
     font-weight: 600;
     cursor: pointer;
     transition: all 0.3s ease;
-    display: inline-block;
 }
 
-button:hover, .btn:hover {
+.btn-teal:hover {
     background-color: #138496;
     transform: translateY(-2px);
     box-shadow: 0 4px 10px rgba(23, 162, 184, 0.3);
+    color: #ffffff;
 }
 
-/* Botão secundário (caso queira usar para "Voltar") */
-.btn-secondary {
-    background-color: #64748b;
-}
-.btn-secondary:hover {
-    background-color: #475569;
-    box-shadow: 0 4px 10px rgba(100, 116, 139, 0.3);
+.btn-outline-secondary {
+    border-radius: 8px;
+    font-weight: 500;
 }
 
 /* =========================================
@@ -266,23 +178,21 @@ button:hover, .btn:hover {
 ========================================= */
 @media (max-width: 768px) {
     .sidebar {
-        width: 70px;
+        width: 70px !important;
         overflow: hidden;
     }
     
-    .sidebar h2, .sidebar a {
-        font-size: 0;
+    .sidebar h5, .sidebar .nav-link span {
+        display: none; /* Esconde o texto, deixa só o ícone */
     }
-    
-    .sidebar a::before {
-        content: "•";
-        font-size: 20px;
+
+    .sidebar .nav-link {
+        text-align: center;
+        padding: 15px 0;
     }
 
     .main-content {
-        margin-left: 70px;
         padding: 20px;
-        width: calc(100% - 70px);
     }
 
     .header h1 {

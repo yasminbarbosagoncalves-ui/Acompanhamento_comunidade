@@ -2,32 +2,71 @@
 
 {% block conteudo %}
 
-<h2>Usuários Cadastrados</h2>
+<!-- CABEÇALHO DA PÁGINA -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="text-dark-teal fw-bold mb-1">Usuários do Sistema</h2>
+        <p class="text-muted mb-0">Controle os acessos e permissões da plataforma</p>
+    </div>
+    <a href="{{ url_for('cadastrar_usuario') }}" class="btn btn-teal">
+        <i class="bi bi-person-plus me-2"></i>Novo Usuário
+    </a>
+</div>
 
-<p>
-    <a href="/usuarios/novo">Cadastrar novo usuário</a>
-</p>
-
-<table border="1" cellpadding="8">
-    <thead>
-        <tr>
-            <th>ID</th>
-            <th>Nome</th>
-            <th>Login</th>
-            <th>Perfil</th>
-        </tr>
-    </thead>
-
-    <tbody>
-        {% for usuario in usuarios %}
-        <tr>
-            <td>{{ usuario.id_usuario }}</td>
-            <td>{{ usuario.nome }}</td>
-            <td>{{ usuario.login }}</td>
-            <td>{{ usuario.perfil }}</td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+<!-- CONTAINER DA TABELA -->
+<div class="card card-custom p-4">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Nome Completo</th>
+                    <th>Login de Acesso</th>
+                    <th>Perfil</th>
+                    <th class="text-center">Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for usuario in usuarios %}
+                <tr>
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-person-circle fs-3 text-secondary me-2"></i>
+                            <span class="fw-semibold">{{ usuario.nome }}</span>
+                        </div>
+                    </td>
+                    <td><span class="badge bg-light text-dark border px-3 py-2"><i class="bi bi-at me-1"></i>{{ usuario.login }}</span></td>
+                    <td>
+                        <!-- Lógica de cores para o Perfil -->
+                        {% if usuario.perfil == 'Administrador' %}
+                            <span class="badge bg-danger rounded-pill px-3 py-2">Administrador</span>
+                        {% elif usuario.perfil == 'Atendente' %}
+                            <span class="badge bg-primary rounded-pill px-3 py-2">Atendente</span>
+                        {% elif usuario.perfil == 'Engenheira' %}
+                            <span class="badge bg-warning text-dark rounded-pill px-3 py-2">Engenheira</span>
+                        {% else %}
+                            <span class="badge bg-secondary rounded-pill px-3 py-2">{{ usuario.perfil }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-center">
+                        <button class="btn btn-sm btn-light text-teal border-0" title="Editar">
+                            <i class="bi bi-pencil-square fs-5"></i>
+                        </button>
+                        <button class="btn btn-sm btn-light text-danger border-0" title="Excluir">
+                            <i class="bi bi-trash fs-5"></i>
+                        </button>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="4" class="text-center py-4 text-muted">
+                        <i class="bi bi-shield-lock fs-1 d-block mb-2"></i>
+                        Nenhum usuário cadastrado ainda.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
 
 {% endblock %}

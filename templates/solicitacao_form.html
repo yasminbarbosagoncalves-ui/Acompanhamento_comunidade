@@ -1,44 +1,100 @@
 {% extends "base.html" %}
+
 {% block conteudo %}
-<div class="form-container">
-    <h2>Cadastrar nova solicitação</h2>
-    <form method="POST" action="/solicitacoes/novo">
-        <div class="form-group">
-            <label>Morador:</label>
-            <select name="id_morador" required>
-                <option value="">Selecione...</option>
-                {% for m in moradores %}<option value="{{ m.id_morador }}">{{ m.nome }}</option>{% endfor %}
-            </select>
+
+<!-- CABEÇALHO DA PÁGINA -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="text-dark-teal fw-bold mb-1">Nova Solicitação</h2>
+        <p class="text-muted mb-0">Preencha os dados abaixo para registrar um novo chamado</p>
+    </div>
+    <a href="{{ url_for('listar_solicitacoes') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-2"></i>Voltar
+    </a>
+</div>
+
+<!-- CONTAINER DO FORMULÁRIO -->
+<div class="card card-custom p-4">
+    <form method="POST" action="{{ url_for('cadastrar_solicitacao') }}">
+        
+        <!-- LINHA 1: Morador e Protocolo -->
+        <div class="row g-4 mb-3">
+            <div class="col-md-6">
+                <label class="form-label fw-semibold">Morador Solicitante <span class="text-danger">*</span></label>
+                <select name="id_morador" class="form-select" required>
+                    <option value="" disabled selected>Selecione o morador...</option>
+                    {% for morador in moradores %}
+                        <option value="{{ morador.id_morador }}">{{ morador.nome }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label fw-semibold">Protocolo <span class="text-danger">*</span></label>
+                <input type="text" name="protocolo" class="form-control" placeholder="Ex: PROT-2026-003" required>
+            </div>
         </div>
-        <div class="form-group">
-            <label>Categoria:</label>
-            <select name="id_categoria" required>
-                <option value="">Selecione...</option>
-                {% for c in categorias %}<option value="{{ c.id_categoria }}">{{ c.nome_categoria }}</option>{% endfor %}
-            </select>
+
+        <!-- LINHA 2: Categoria e Setor -->
+        <div class="row g-4 mb-3">
+            <div class="col-md-6">
+                <label class="form-label fw-semibold">Categoria <span class="text-danger">*</span></label>
+                <select name="id_categoria" class="form-select" required>
+                    <option value="" disabled selected>Selecione a categoria...</option>
+                    {% for categoria in categorias %}
+                        <option value="{{ categoria.id_categoria }}">{{ categoria.nome_categoria }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label fw-semibold">Setor Responsável <span class="text-danger">*</span></label>
+                <select name="id_setor" class="form-select" required>
+                    <option value="" disabled selected>Selecione o setor...</option>
+                    {% for setor in setores %}
+                        <option value="{{ setor.id_setor }}">{{ setor.nome_setor }}</option>
+                    {% endfor %}
+                </select>
+            </div>
         </div>
-        <div class="form-group">
-            <label>Setor:</label>
-            <select name="id_setor" required>
-                <option value="">Selecione...</option>
-                {% for s in setores %}<option value="{{ s.id_setor }}">{{ s.nome_setor }}</option>{% endfor %}
-            </select>
+
+        <!-- LINHA 3: Localização e Data -->
+        <div class="row g-4 mb-3">
+            <div class="col-md-8">
+                <label class="form-label fw-semibold">Localização (Endereço) <span class="text-danger">*</span></label>
+                <input type="text" name="localizacao" class="form-control" placeholder="Ex: Rua das Flores, 120" required>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fw-semibold">Data do Registro <span class="text-danger">*</span></label>
+                <input type="date" name="data_registro" class="form-control" required>
+            </div>
         </div>
-        <div class="form-group"><label>Protocolo:</label><input type="text" name="protocolo" required></div>
-        <div class="form-group"><label>Descrição:</label><textarea name="descricao" required></textarea></div>
-        <div class="form-group"><label>Localização:</label><input type="text" name="localizacao" required></div>
-        <div class="form-group"><label>Data do Registro:</label><input type="date" name="data_registro" required></div>
-        <div class="form-group">
-            <label>Status:</label>
-            <select name="status" required>
-                <option value="Recebida">Recebida</option>
-                <option value="Em Análise">Em Análise</option>
-                <option value="Encaminhada">Encaminhada</option>
-                <option value="Em Execução">Em Execução</option>
-                <option value="Concluída">Concluída</option>
-            </select>
+
+        <!-- LINHA 4: Status Inicial -->
+        <div class="row g-4 mb-4">
+            <div class="col-md-6">
+                <label class="form-label fw-semibold">Status Inicial <span class="text-danger">*</span></label>
+                <select name="status" class="form-select" required>
+                    <option value="Recebida" selected>Recebida</option>
+                    <option value="Em Análise">Em Análise</option>
+                    <option value="Em Execução">Em Execução</option>
+                </select>
+            </div>
         </div>
-        <button type="submit">Cadastrar solicitação</button>
+
+        <!-- LINHA 5: Descrição -->
+        <div class="mb-4">
+            <label class="form-label fw-semibold">Descrição do Problema <span class="text-danger">*</span></label>
+            <textarea name="descricao" class="form-control" rows="4" placeholder="Descreva detalhadamente o problema ou solicitação..." required></textarea>
+        </div>
+
+        <!-- BOTÕES DE AÇÃO -->
+        <div class="d-flex justify-content-end gap-3 mt-4 pt-3 border-top">
+            <a href="{{ url_for('listar_solicitacoes') }}" class="btn btn-light border px-4">Cancelar</a>
+            <button type="submit" class="btn btn-teal px-5">
+                <i class="bi bi-check-lg me-2"></i>Salvar Solicitação
+            </button>
+        </div>
+
     </form>
 </div>
+
 {% endblock %}

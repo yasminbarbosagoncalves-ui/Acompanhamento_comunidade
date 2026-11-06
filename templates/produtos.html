@@ -2,38 +2,77 @@
 
 {% block conteudo %}
 
-<h2>Produtos Cadastrados</h2>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="text-dark-teal fw-bold mb-1">Produtos e Estoque</h2>
+        <p class="text-muted mb-0">Gerencie os itens disponíveis no sistema</p>
+    </div>
+    <a href="{{ url_for('cadastrar_produto') }}" class="btn btn-teal">
+        <i class="bi bi-box-seam me-2"></i>Novo Produto
+    </a>
+</div>
 
-<p><a href="/produtos/novo">Cadastrar novo produto</a></p>
-
-<table border="1" cellpadding="8">
-    <thead>
-        <tr>
-            <th>ID</th>
-            <th>Nome</th>
-            <th>Descrição</th>
-            <th>Preço</th>
-            <th>Quantidade</th>
-            <th>Categoria</th>
-            <th>Status</th>
-            <th>Data de cadastro</th>
-        </tr>
-    </thead>
-
-    <tbody>
-        {% for produto in produtos %}
-        <tr>
-            <td>{{ produto.id }}</td>
-            <td>{{ produto.nome }}</td>
-            <td>{{ produto.descricao or '' }}</td>
-            <td>R$ {{ "%.2f"|format(produto.preco) }}</td>
-            <td>{{ produto.quantidade }}</td>
-            <td>{{ produto.categoria or '' }}</td>
-            <td>{{ produto.status }}</td>
-            <td>{{ produto.data_cadastro }}</td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+<div class="card card-custom p-4">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Produto</th>
+                    <th>Categoria</th>
+                    <th>Preço</th>
+                    <th>Estoque</th>
+                    <th>Status</th>
+                    <th class="text-center">Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for produto in produtos %}
+                <tr>
+                    <td>
+                        <div class="d-flex align-items-center">
+                            {% if produto.imagem %}
+                                <img src="{{ produto.imagem }}" alt="{{ produto.nome }}" class="rounded me-3" style="width: 40px; height: 40px; object-fit: cover;">
+                            {% else %}
+                                <div class="bg-light rounded d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px;">
+                                    <i class="bi bi-image text-muted"></i>
+                                </div>
+                            {% endif %}
+                            <span class="fw-semibold">{{ produto.nome }}</span>
+                        </div>
+                    </td>
+                    <td><span class="badge bg-light text-dark border">{{ produto.categoria }}</span></td>
+                    <td class="fw-bold text-success">R$ {{ "%.2f"|format(produto.preco) }}</td>
+                    <td>
+                        <!-- Lógica para destacar estoque baixo -->
+                        {% if produto.quantidade <= 10 %}
+                            <span class="badge bg-danger rounded-pill px-3">{{ produto.quantidade }} un.</span>
+                        {% else %}
+                            <span class="badge bg-light text-dark border px-3">{{ produto.quantidade }} un.</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if produto.status == 'ativo' %}
+                            <span class="badge bg-success rounded-pill px-3 py-2">Ativo</span>
+                        {% else %}
+                            <span class="badge bg-secondary rounded-pill px-3 py-2">Inativo</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-center">
+                        <button class="btn btn-sm btn-light text-teal border-0"><i class="bi bi-pencil-square fs-5"></i></button>
+                        <button class="btn btn-sm btn-light text-danger border-0"><i class="bi bi-trash fs-5"></i></button>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" class="text-center py-4 text-muted">
+                        <i class="bi bi-box fs-1 d-block mb-2"></i>
+                        Nenhum produto cadastrado.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
 
 {% endblock %}

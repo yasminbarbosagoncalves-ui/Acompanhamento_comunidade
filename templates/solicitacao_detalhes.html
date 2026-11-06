@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block conteudo %}
+
+<!-- CABEÇALHO -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="text-dark-teal fw-bold mb-1">Detalhes da Solicitação</h2>
+        <p class="text-muted mb-0">Protocolo: <strong>{{ solicitacao.protocolo }}</strong></p>
+    </div>
+    <a href="{{ url_for('listar_solicitacoes') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-2"></i>Voltar para a Lista
+    </a>
+</div>
+
+<div class="row g-4">
+    <!-- COLUNA ESQUERDA: DADOS DA SOLICITAÇÃO -->
+    <div class="col-md-7">
+        <div class="card card-custom p-4 mb-4">
+            <h5 class="text-dark-teal fw-bold mb-3"><i class="bi bi-info-circle me-2"></i>Informações do Chamado</h5>
+            
+            <div class="mb-3">
+                <label class="text-muted small fw-bold text-uppercase">Status Atual</label>
+                <div>
+                    {% if solicitacao.status == 'Recebida' %}
+                        <span class="badge bg-info text-dark rounded-pill px-3 py-2 fs-6">Recebida</span>
+                    {% elif solicitacao.status == 'Em Análise' %}
+                        <span class="badge bg-warning text-dark rounded-pill px-3 py-2 fs-6">Em Análise</span>
+                    {% elif solicitacao.status == 'Em Execução' %}
+                        <span class="badge bg-primary rounded-pill px-3 py-2 fs-6">Em Execução</span>
+                    {% elif solicitacao.status == 'Concluída' %}
+                        <span class="badge bg-success rounded-pill px-3 py-2 fs-6">Concluída</span>
+                    {% else %}
+                        <span class="badge bg-secondary rounded-pill px-3 py-2 fs-6">{{ solicitacao.status }}</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <div class="col-sm-6">
+                    <label class="text-muted small fw-bold text-uppercase">Categoria</label>
+                    <p class="mb-0 fw-semibold">{{ solicitacao.categoria }}</p>
+                </div>
+                <div class="col-sm-6">
+                    <label class="text-muted small fw-bold text-uppercase">Setor Responsável</label>
+                    <p class="mb-0 fw-semibold">{{ solicitacao.setor }}</p>
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <div class="col-sm-6">
+                    <label class="text-muted small fw-bold text-uppercase">Data do Registro</label>
+                    <p class="mb-0 fw-semibold">{{ solicitacao.data_registro.strftime('%d/%m/%Y') }}</p>
+                </div>
+                <div class="col-sm-6">
+                    <label class="text-muted small fw-bold text-uppercase">Localização</label>
+                    <p class="mb-0 fw-semibold">{{ solicitacao.localizacao }}</p>
+                </div>
+            </div>
+
+            <div class="mb-0">
+                <label class="text-muted small fw-bold text-uppercase">Descrição do Problema</label>
+                <div class="bg-light p-3 rounded-3 mt-1 border">
+                    {{ solicitacao.descricao }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- COLUNA DIREITA: DADOS DO MORADOR E HISTÓRICO -->
+    <div class="col-md-5">
+        
+        <!-- Cartão do Morador -->
+        <div class="card card-custom p-4 mb-4">
+            <h5 class="text-dark-teal fw-bold mb-3"><i class="bi bi-person-badge me-2"></i>Dados do Solicitante</h5>
+            <div class="d-flex align-items-center mb-3">
+                <div class="bg-teal text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 50px; height: 50px;">
+                    <i class="bi bi-person fs-3"></i>
+                </div>
+                <div>
+                    <h6 class="mb-0 fw-bold">{{ solicitacao.morador }}</h6>
+                    <small class="text-muted">CPF: {{ solicitacao.cpf }}</small>
+                </div>
+            </div>
+            <p class="mb-1 text-muted"><i class="bi bi-telephone me-2"></i>{{ solicitacao.telefone or 'Não informado' }}</p>
+            <p class="mb-0 text-muted"><i class="bi bi-envelope me-2"></i>{{ solicitacao.email or 'Não informado' }}</p>
+        </div>
+
+        <!-- Timeline do Histórico -->
+        <div class="card card-custom p-4">
+            <h5 class="text-dark-teal fw-bold mb-4"><i class="bi bi-clock-history me-2"></i>Histórico do Chamado</h5>
+            
+            {% if historico %}
+                <div class="position-relative border-start border-2 border-light ps-4 ms-2">
+                    {% for item in historico %}
+                    <div class="mb-4 position-relative">
+                        <!-- Bolinha na linha do tempo -->
+                        <div class="position-absolute top-0 start-0 translate-middle-x bg-teal rounded-circle" style="width: 12px; height: 12px; margin-left: -25px; margin-top: 5px;"></div>
+                        
+                        <small class="text-muted fw-bold">{{ item.data_alteracao.strftime('%d/%m/%Y') }}</small>
+                        <p class="mb-1 fw-semibold">
+                            <span class="text-decoration-line-through text-muted small">{{ item.status_anterior }}</span> 
+                            <i class="bi bi-arrow-right small text-muted mx-1"></i> 
+                            <span class="text-teal">{{ item.novo_status }}</span>
+                        </p>
+                        <p class="text-muted small mb-0">{{ item.observacao }}</p>
+                        <small class="text-muted" style="font-size: 0.75rem;">Por: {{ item.funcionario }}</small>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center text-muted py-3">
+                    <i class="bi bi-hourglass-split fs-2 d-block mb-2"></i>
+                    Nenhuma movimentação registrada ainda.
+                </div>
+            {% endif %}
+        </div>
+
+    </div>
+</div>
+
+{% endblock %}

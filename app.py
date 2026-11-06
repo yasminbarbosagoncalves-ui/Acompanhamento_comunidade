@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, session
+from flask import Flask, render_template, request, redirect, url_for, session, flash
 from werkzeug.security import generate_password_hash, check_password_hash
 import mysql.connector
 from config import DB_CONFIG
@@ -68,22 +68,30 @@ def buscar_um(sql, parametros=()):
 
 @app.route("/")
 def index():
-    # Se o usuário não estiver logado, redireciona para a tela de login
     if "usuario_id" not in session:
         return redirect(url_for("login"))
 
-    # Buscando a contagem de cada tabela
     qtd_moradores = consultar_sql("SELECT COUNT(*) as total FROM morador")[0]['total']
     qtd_solicitacoes = consultar_sql("SELECT COUNT(*) as total FROM solicitacao")[0]['total']
     qtd_produtos = consultar_sql("SELECT COUNT(*) as total FROM produtos")[0]['total']
     qtd_mensagens = consultar_sql("SELECT COUNT(*) as total FROM mensagens")[0]['total']
 
+    # NOVO: Buscar a contagem de solicitações por status
+    status_counts = consultar_sql("""
+        SELECT status, COUNT(*) as total 
+        FROM solicitacao 
+        GROUP BY status
+    """)
+    
+    # Transformar em um dicionário para facilitar no HTML
+    dados_grafico = {item['status']: item['total'] for item in status_counts}
+
     return render_template("index.html", 
                            moradores=qtd_moradores, 
                            solicitacoes=qtd_solicitacoes,
                            produtos=qtd_produtos,
-                           mensagens=qtd_mensagens)
-
+                           mensagens=qtd_mensagens,
+                           dados_grafico=dados_grafico) # <-- Passando para o HTML
 # =====================================================
 # AUTENTICAÇÃO (LOGIN E LOGOUT)
 # =====================================================
@@ -122,6 +130,7 @@ def login():
 def logout():
     session.clear()
     return redirect(url_for("login"))
+
 # =====================================================
 # USUÁRIOS
 # =====================================================
@@ -149,6 +158,11 @@ def cadastrar_usuario():
         )
         if erro:
             return f"Erro ao cadastrar: {erro}"
+        if erro:
+            return f"Erro ao cadastrar: {erro}"
+            
+        flash('Usuário cadastrado com sucesso!', 'success') # ADICIONE AQUI
+        return redirect(url_for("listar_usuarios"))
             
         return redirect(url_for("listar_usuarios"))
         
@@ -189,6 +203,12 @@ def cadastrar_morador():
         )
         if erro:
             return f"Erro ao cadastrar: {erro}"
+
+        if erro:
+            return f"Erro ao cadastrar: {erro}"
+            
+        flash('Morador cadastrado com sucesso!', 'success') # ADICIONE AQUI
+        return redirect(url_for("listar_moradores"))
             
         return redirect(url_for("listar_moradores"))
         
@@ -218,6 +238,12 @@ def cadastrar_setor():
         )
         if erro:
             return f"Erro ao cadastrar: {erro}"
+        
+        if erro:
+            return f"Erro ao cadastrar: {erro}"
+            
+        flash('Setor cadastrado com sucesso!', 'success') # ADICIONE AQUI
+        return redirect(url_for("listar_setores"))
             
         return redirect(url_for("listar_setores"))
         
@@ -247,6 +273,12 @@ def cadastrar_categoria():
         )
         if erro:
             return f"Erro ao cadastrar: {erro}"
+
+        if erro:
+            return f"Erro ao cadastrar: {erro}"
+            
+        flash('Categoria cadastrada com sucesso!', 'success') # ADICIONE AQUI
+        return redirect(url_for("listar_categorias"))
             
         return redirect(url_for("listar_categorias"))
         
@@ -288,6 +320,12 @@ def cadastrar_funcionario():
         )
         if erro:
             return f"Erro ao cadastrar: {erro}"
+
+        if erro:
+            return f"Erro ao cadastrar: {erro}"
+            
+        flash('Funcionário cadastrado com sucesso!', 'success') # ADICIONE AQUI
+        return redirect(url_for("listar_funcionarios"))
             
         return redirect(url_for("listar_funcionarios"))
         
@@ -335,11 +373,43 @@ def cadastrar_solicitacao():
         
         if erro:
             return f"Erro ao cadastrar: {erro}"
+
+        if erro:
+            return f"Erro ao cadastrar: {erro}"
+            
+        flash('Solicitação registrada com sucesso!', 'success') # ADICIONE AQUI
+        return redirect(url_for("listar_solicitacoes"))
             
         return redirect(url_for("listar_solicitacoes"))
         
     return render_template("solicitacao_form.html", moradores=moradores, categorias=categorias, setores=setores)
 
+@app.route("/solicitacoes/<int:id>")
+def detalhes_solicitacao(id):
+    # Busca os dados da solicitação específica com os JOINs
+    solicitacao = buscar_um("""
+        SELECT so.*, m.nome AS morador, m.cpf, m.telefone, m.email, 
+               c.nome_categoria AS categoria, se.nome_setor AS setor
+        FROM solicitacao so
+        JOIN morador m ON so.id_morador = m.id_morador
+        JOIN categoria c ON so.id_categoria = c.id_categoria
+        JOIN setor se ON so.id_setor = se.id_setor
+        WHERE so.id_solicitacao = %s
+    """, (id,))
+    
+    if not solicitacao:
+        return "Solicitação não encontrada.", 404
+        
+    # Busca o histórico dessa solicitação
+    historico = consultar_sql("""
+        SELECT h.*, f.nome AS funcionario
+        FROM historico h
+        JOIN funcionario f ON h.id_funcionario = f.id_funcionario
+        WHERE h.id_solicitacao = %s
+        ORDER BY h.data_alteracao ASC
+    """, (id,))
+    
+    return render_template("solicitacao_detalhes.html", solicitacao=solicitacao, historico=historico)
 # =====================================================
 # HISTÓRICO
 # =====================================================
@@ -378,6 +448,12 @@ def cadastrar_historico():
         
         if erro:
             return f"Erro ao cadastrar: {erro}"
+
+        if erro:
+            return f"Erro ao cadastrar: {erro}"
+            
+        flash('Histórico registrado com sucesso!', 'success') # ADICIONE AQUI
+        return redirect(url_for("listar_historico"))
             
         return redirect(url_for("listar_historico"))
         
@@ -419,7 +495,12 @@ def cadastrar_produto():
         
         if erro:
             return f"Erro ao cadastrar: {erro}"
+
+        if erro:
+            return f"Erro ao cadastrar: {erro}"
             
+        flash('Produto cadastrado com sucesso!', 'success') # ADICIONE AQUI
+        return redirect(url_for("listar_produtos"))
         return redirect(url_for("listar_produtos"))
         
     return render_template("produtos_form.html")
@@ -453,7 +534,12 @@ def cadastrar_mensagem():
         
         if erro:
             return f"Erro ao cadastrar: {erro}"
+
+        if erro:
+            return f"Erro ao cadastrar: {erro}"
             
+        flash('Mensagem enviada com sucesso!', 'success') # ADICIONE AQUI
+        return redirect(url_for("listar_mensagens"))            
         return redirect(url_for("listar_mensagens"))
         
     return render_template("mensagens_form.html")

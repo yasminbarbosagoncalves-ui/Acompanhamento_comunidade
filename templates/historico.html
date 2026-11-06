@@ -1,24 +1,55 @@
 {% extends "base.html" %}
+
 {% block conteudo %}
-<div class="table-container">
-    <h2>Histórico de Alterações</h2>
-    <p><a href="/historico/novo"><button>+ Cadastrar novo histórico</button></a></p>
-    <table>
-        <thead>
-            <tr><th>ID</th><th>Protocolo</th><th>Funcionário</th><th>Status Anterior</th><th>Novo Status</th><th>Data</th></tr>
-        </thead>
-        <tbody>
-            {% for h in historicos %}
-            <tr>
-                <td>{{ h.id_historico }}</td>
-                <td>{{ h.protocolo }}</td>
-                <td>{{ h.funcionario }}</td>
-                <td>{{ h.status_anterior }}</td>
-                <td>{{ h.novo_status }}</td>
-                <td>{{ h.data_alteracao }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="text-dark-teal fw-bold mb-1">Histórico de Alterações</h2>
+        <p class="text-muted mb-0">Acompanhe a evolução das solicitações</p>
+    </div>
+    <a href="{{ url_for('cadastrar_historico') }}" class="btn btn-teal">
+        <i class="bi bi-clock-history me-2"></i>Registrar Alteração
+    </a>
 </div>
+
+<div class="card card-custom p-4">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Protocolo</th>
+                    <th>Funcionário</th>
+                    <th>Transição de Status</th>
+                    <th>Data</th>
+                    <th>Observação</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in historicos %}
+                <tr>
+                    <td class="fw-bold text-dark-teal">{{ item.protocolo }}</td>
+                    <td><i class="bi bi-person-badge text-muted me-2"></i>{{ item.funcionario }}</td>
+                    <td>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-secondary text-white">{{ item.status_anterior }}</span>
+                            <i class="bi bi-arrow-right text-muted"></i>
+                            <span class="badge bg-teal text-white">{{ item.novo_status }}</span>
+                        </div>
+                    </td>
+                    <td>{{ item.data_alteracao.strftime('%d/%m/%Y') }}</td>
+                    <td><span class="text-muted">{{ item.observacao or 'Sem observações' }}</span></td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" class="text-center py-4 text-muted">
+                        <i class="bi bi-clock fs-1 d-block mb-2"></i>
+                        Nenhum histórico registrado.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
 {% endblock %}
