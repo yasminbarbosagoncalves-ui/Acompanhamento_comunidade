@@ -2,7 +2,6 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from werkzeug.security import generate_password_hash, check_password_hash
 import mysql.connector
 from config import DB_CONFIG
-from werkzeug.security import generate_password_hash
 from decimal import Decimal, InvalidOperation
 
 app = Flask(__name__)
@@ -39,7 +38,8 @@ def consultar_sql(sql, parametros=()):
     cursor = None
     try:
         conexao = conectar()
-        cursor = conexao.cursor(dictionary=True)
+        # CORREÇÃO AQUI: Adicionado buffered=True
+        cursor = conexao.cursor(dictionary=True, buffered=True)
         cursor.execute(sql, parametros)
         return cursor.fetchall()
     finally:
@@ -53,7 +53,8 @@ def buscar_um(sql, parametros=()):
     cursor = None
     try:
         conexao = conectar()
-        cursor = conexao.cursor(dictionary=True)
+        # CORREÇÃO AQUI: Adicionado buffered=True
+        cursor = conexao.cursor(dictionary=True, buffered=True)
         cursor.execute(sql, parametros)
         return cursor.fetchone()
     finally:
@@ -61,6 +62,10 @@ def buscar_um(sql, parametros=()):
             cursor.close()
         if conexao and conexao.is_connected():
             conexao.close()
+
+# =====================================================
+# PÁGINA INICIAL
+# =====================================================
 
 # =====================================================
 # PÁGINA INICIAL
@@ -92,6 +97,7 @@ def index():
                            produtos=qtd_produtos,
                            mensagens=qtd_mensagens,
                            dados_grafico=dados_grafico) # <-- Passando para o HTML
+          
 # =====================================================
 # AUTENTICAÇÃO (LOGIN E LOGOUT)
 # =====================================================
@@ -125,7 +131,6 @@ def login():
     # Se for GET, apenas mostra a tela de login
     return render_template("login.html", erro=None)
 
-
 @app.route("/logout")
 def logout():
     session.clear()
@@ -151,7 +156,6 @@ def perfil():
 # USUÁRIOS
 # =====================================================
 
-# --- SUBSTITUA A SUA ROTA listar_usuarios POR ESTA ---
 @app.route("/usuarios")
 def listar_usuarios():
     busca = request.args.get("busca", "").strip()
@@ -168,7 +172,6 @@ def listar_usuarios():
     usuarios = consultar_sql(sql, parametros)
     return render_template("usuario.html", usuarios=usuarios, busca=busca)
 
-# --- ADICIONE ESTA ROTA LOGO ABAIXO DO cadastrar_usuario ---
 @app.route("/usuarios/editar/<int:id>", methods=["GET", "POST"])
 def editar_usuario(id):
     usuario = buscar_um("SELECT * FROM usuario WHERE id_usuario = %s", (id,))
@@ -222,12 +225,8 @@ def cadastrar_usuario():
         )
         if erro:
             return f"Erro ao cadastrar: {erro}"
-        if erro:
-            return f"Erro ao cadastrar: {erro}"
             
-        flash('Usuário cadastrado com sucesso!', 'success') # ADICIONE AQUI
-        return redirect(url_for("listar_usuarios"))
-            
+        flash('Usuário cadastrado com sucesso!', 'success')
         return redirect(url_for("listar_usuarios"))
         
     return render_template("usuario_form.html")
@@ -277,13 +276,8 @@ def cadastrar_morador():
         )
         if erro:
             return f"Erro ao cadastrar: {erro}"
-
-        if erro:
-            return f"Erro ao cadastrar: {erro}"
             
-        flash('Morador cadastrado com sucesso!', 'success') # ADICIONE AQUI
-        return redirect(url_for("listar_moradores"))
-            
+        flash('Morador cadastrado com sucesso!', 'success')
         return redirect(url_for("listar_moradores"))
         
     return render_template("morador_form.html", usuarios=usuarios)
@@ -362,13 +356,8 @@ def cadastrar_setor():
         )
         if erro:
             return f"Erro ao cadastrar: {erro}"
-        
-        if erro:
-            return f"Erro ao cadastrar: {erro}"
             
-        flash('Setor cadastrado com sucesso!', 'success') # ADICIONE AQUI
-        return redirect(url_for("listar_setores"))
-            
+        flash('Setor cadastrado com sucesso!', 'success')
         return redirect(url_for("listar_setores"))
         
     return render_template("setor_form.html")
@@ -397,13 +386,8 @@ def cadastrar_categoria():
         )
         if erro:
             return f"Erro ao cadastrar: {erro}"
-
-        if erro:
-            return f"Erro ao cadastrar: {erro}"
             
-        flash('Categoria cadastrada com sucesso!', 'success') # ADICIONE AQUI
-        return redirect(url_for("listar_categorias"))
-            
+        flash('Categoria cadastrada com sucesso!', 'success')
         return redirect(url_for("listar_categorias"))
         
     return render_template("categoria_form.html")
@@ -444,13 +428,8 @@ def cadastrar_funcionario():
         )
         if erro:
             return f"Erro ao cadastrar: {erro}"
-
-        if erro:
-            return f"Erro ao cadastrar: {erro}"
             
-        flash('Funcionário cadastrado com sucesso!', 'success') # ADICIONE AQUI
-        return redirect(url_for("listar_funcionarios"))
-            
+        flash('Funcionário cadastrado com sucesso!', 'success')
         return redirect(url_for("listar_funcionarios"))
         
     return render_template("funcionario_form.html", usuarios=usuarios, setores=setores)
@@ -459,7 +438,6 @@ def cadastrar_funcionario():
 # SOLICITAÇÕES
 # =====================================================
 
-# --- SUBSTITUA SUA ROTA ATUAL DE LISTAR POR ESTA ---
 @app.route("/solicitacoes")
 def listar_solicitacoes():
     busca = request.args.get("busca", "").strip()
@@ -482,8 +460,6 @@ def listar_solicitacoes():
     solicitacoes = consultar_sql(sql, parametros)
     return render_template("solicitacao.html", solicitacoes=solicitacoes, busca=busca)
 
-
-# --- ADICIONE ESTAS DUAS ROTAS LOGO ABAIXO DO CADASTRAR_SOLICITACAO ---
 @app.route("/solicitacoes/editar/<int:id>", methods=["GET", "POST"])
 def editar_solicitacao(id):
     # Busca a solicitação e as listas para os selects
@@ -560,13 +536,8 @@ def cadastrar_solicitacao():
         
         if erro:
             return f"Erro ao cadastrar: {erro}"
-
-        if erro:
-            return f"Erro ao cadastrar: {erro}"
             
-        flash('Solicitação registrada com sucesso!', 'success') # ADICIONE AQUI
-        return redirect(url_for("listar_solicitacoes"))
-            
+        flash('Solicitação registrada com sucesso!', 'success')
         return redirect(url_for("listar_solicitacoes"))
         
     return render_template("solicitacao_form.html", moradores=moradores, categorias=categorias, setores=setores)
@@ -597,6 +568,7 @@ def detalhes_solicitacao(id):
     """, (id,))
     
     return render_template("solicitacao_detalhes.html", solicitacao=solicitacao, historico=historico)
+
 # =====================================================
 # HISTÓRICO
 # =====================================================
@@ -635,13 +607,8 @@ def cadastrar_historico():
         
         if erro:
             return f"Erro ao cadastrar: {erro}"
-
-        if erro:
-            return f"Erro ao cadastrar: {erro}"
             
-        flash('Histórico registrado com sucesso!', 'success') # ADICIONE AQUI
-        return redirect(url_for("listar_historico"))
-            
+        flash('Histórico registrado com sucesso!', 'success')
         return redirect(url_for("listar_historico"))
         
     return render_template("historico_form.html", solicitacoes=solicitacoes, funcionarios=funcionarios)
@@ -733,12 +700,8 @@ def cadastrar_produto():
         
         if erro:
             return f"Erro ao cadastrar: {erro}"
-
-        if erro:
-            return f"Erro ao cadastrar: {erro}"
             
-        flash('Produto cadastrado com sucesso!', 'success') # ADICIONE AQUI
-        return redirect(url_for("listar_produtos"))
+        flash('Produto cadastrado com sucesso!', 'success')
         return redirect(url_for("listar_produtos"))
         
     return render_template("produtos_form.html")
@@ -772,16 +735,11 @@ def cadastrar_mensagem():
         
         if erro:
             return f"Erro ao cadastrar: {erro}"
-
-        if erro:
-            return f"Erro ao cadastrar: {erro}"
             
-        flash('Mensagem enviada com sucesso!', 'success') # ADICIONE AQUI
-        return redirect(url_for("listar_mensagens"))            
+        flash('Mensagem enviada com sucesso!', 'success')
         return redirect(url_for("listar_mensagens"))
         
     return render_template("mensagens_form.html")
-
 
 
 # =====================================================
