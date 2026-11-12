@@ -27,6 +27,7 @@
             <tbody>
                 {% for msg in mensagens %}
                 <tr>
+                    <!-- 1. REMETENTE -->
                     <td>
                         <div class="d-flex align-items-center">
                             <div class="bg-teal text-white rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 35px; height: 35px;">
@@ -38,13 +39,18 @@
                             </div>
                         </div>
                     </td>
+
+                    <!-- 2. ASSUNTO -->
                     <td>
-                        <!-- Se não foi lida, deixa o assunto em negrito -->
                         <span class="{% if msg.status == 'não lida' %}fw-bold text-dark{% else %}text-muted{% endif %}">
                             {{ msg.assunto }}
                         </span>
                     </td>
+
+                    <!-- 3. DATA DE ENVIO -->
                     <td>{{ msg.data_envio.strftime('%d/%m/%Y %H:%M') }}</td>
+
+                    <!-- 4. STATUS -->
                     <td>
                         {% if msg.status == 'não lida' %}
                             <span class="badge bg-danger rounded-pill px-3 py-2">Não Lida</span>
@@ -56,12 +62,20 @@
                             <span class="badge bg-secondary rounded-pill px-3 py-2">{{ msg.status }}</span>
                         {% endif %}
                     </td>
+
+                    <!-- 5. AÇÕES -->
                     <td class="text-center">
-                        <button class="btn btn-sm btn-light text-teal border-0" title="Ler Mensagem"><i class="bi bi-eye fs-5"></i></button>
-                        <button class="btn btn-sm btn-light text-danger border-0" title="Excluir"><i class="bi bi-trash fs-5"></i></button>
+                        <a href="{{ url_for('detalhes_mensagem', id=msg.id) }}" class="btn btn-sm btn-light text-teal border-0" title="Ler Mensagem">
+                            <i class="bi bi-eye fs-5"></i>
+                        </a>
+                        
+                        <button class="btn btn-sm btn-light text-danger border-0" title="Excluir">
+                            <i class="bi bi-trash fs-5"></i>
+                        </button>
                     </td>
                 </tr>
                 {% else %}
+                <!-- ESTA LINHA SÓ APARECE SE A LISTA ESTIVER VAZIA -->
                 <tr>
                     <td colspan="5" class="text-center py-4 text-muted">
                         <i class="bi bi-envelope-open fs-1 d-block mb-2"></i>

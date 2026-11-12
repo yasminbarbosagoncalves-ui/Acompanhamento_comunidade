@@ -12,9 +12,6 @@
         <p class="fs-6 mb-4" style="color: rgba(255,255,255,0.8);">
             Acompanhe de perto as melhorias da nossa cidade e resolva os problemas da comunidade de forma rápida e transparente.
         </p>
-        <a href="{{ url_for('cadastrar_solicitacao') }}" class="btn btn-teal btn-lg px-4 shadow">
-            <i class="bi bi-plus-circle me-2"></i>Fazer Nova Solicitação
-        </a>
     </div>
 </div>
 
@@ -95,8 +92,30 @@
     <div class="col-md-5">
         <div class="card card-custom p-4 h-100">
             <h5 class="text-dark-teal fw-bold mb-3"><i class="bi bi-pie-chart me-2"></i>Solicitações por Status</h5>
-            <div class="d-flex justify-content-center align-items-center" style="height: 200px;">
+            
+            <!-- CAIXA DO GRÁFICO -->
+            <div style="position: relative; height: 200px; width: 100%; margin-bottom: 20px;">
                 <canvas id="graficoStatus"></canvas>
+            </div>
+
+            <!-- LEGENDA COM NÚMEROS -->
+            <div class="row text-center mt-auto">
+                <div class="col-6 mb-2">
+                    <span class="text-info fw-semibold"><i class="bi bi-circle-fill small me-1"></i>Recebidas</span>
+                    <h4 class="fw-bold mb-0 text-dark-teal">{{ dados_grafico.get('Recebida', 0) }}</h4>
+                </div>
+                <div class="col-6 mb-2">
+                    <span class="text-warning fw-semibold"><i class="bi bi-circle-fill small me-1"></i>Em Análise</span>
+                    <h4 class="fw-bold mb-0 text-dark-teal">{{ dados_grafico.get('Em Análise', 0) }}</h4>
+                </div>
+                <div class="col-6">
+                    <span class="text-primary fw-semibold"><i class="bi bi-circle-fill small me-1"></i>Em Execução</span>
+                    <h4 class="fw-bold mb-0 text-dark-teal">{{ dados_grafico.get('Em Execução', 0) }}</h4>
+                </div>
+                <div class="col-6">
+                    <span class="text-success fw-semibold"><i class="bi bi-circle-fill small me-1"></i>Concluídas</span>
+                    <h4 class="fw-bold mb-0 text-dark-teal">{{ dados_grafico.get('Concluída', 0) }}</h4>
+                </div>
             </div>
         </div>
     </div>
@@ -154,47 +173,53 @@
 
 {% endblock %}
 
-<!-- Script do Chart.js -->
+<!-- SCRIPT DO GRÁFICO -->
+{% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     // Pega os dados do Python e transforma em JSON para o JavaScript ler
     const dados = {{ dados_grafico | tojson }};
     
-    // Cores para cada status
+    // Cores para cada status (iguais as da legenda)
     const cores = {
-        'Recebida': '#0dcaf0',
-        'Em Análise': '#ffc107',
-        'Em Execução': '#0d6efd',
-        'Concluída': '#198754'
+        'Recebida': '#0dcaf0',     // text-info
+        'Em Análise': '#ffc107',   // text-warning
+        'Em Execução': '#0d6efd',  // text-primary
+        'Concluída': '#198754'     // text-success
     };
 
-    // Prepara os rótulos (nomes) e os valores (quantidades)
     const labels = Object.keys(dados);
     const valores = Object.values(dados);
     const backgroundColors = labels.map(label => cores[label] || '#6c757d');
 
-    const ctx = document.getElementById('graficoStatus').getContext('2d');
+    const canvasElement = document.getElementById('graficoStatus');
     
-    new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-            labels: labels,
-            datasets: [{
-                data: valores,
-                backgroundColor: backgroundColors,
-                borderWidth: 2,
-                borderColor: '#ffffff',
-                hoverOffset: 4
-            }]
-        },
-        options: {
-            cutout: '70%',
-            plugins: {
-                legend: {
-                    display: false
-                }
+    if (canvasElement) {
+        const ctx = canvasElement.getContext('2d');
+        
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: valores,
+                    backgroundColor: backgroundColors,
+                    borderWidth: 2,
+                    borderColor: '#ffffff',
+                    hoverOffset: 4
+                }]
             },
-            maintainAspectRatio: false
-        }
-    });
+            options: {
+                cutout: '70%',
+                plugins: {
+                    legend: {
+                        display: false // Esconde a legenda padrão do Chart.js
+                    }
+                },
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
+    }
 </script>
+{% endblock %}
