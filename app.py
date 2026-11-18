@@ -134,6 +134,38 @@ def login():
     # Se for GET, apenas mostra a tela de login
     return render_template("login.html", erro=None)
 
+@app.route("/cadastro", methods=["GET", "POST"])
+def cadastro():
+    if request.method == "POST":
+        nome = request.form.get("nome", "").strip()
+        login = request.form.get("login", "").strip()
+        senha = request.form.get("senha", "")
+        perfil = request.form.get("perfil", "Morador")
+        
+        if not nome or not login or not senha or not perfil:
+            return render_template("cadastro.html", erro="Preencha todos os campos.")
+            
+        # Verifica se o login já existe
+        usuario_existente = buscar_um("SELECT id_usuario FROM usuario WHERE login = %s", (login,))
+        if usuario_existente:
+            return render_template("cadastro.html", erro="Este login já está em uso. Escolha outro.")
+            
+        senha_hash = generate_password_hash(senha)
+        
+        # Insere o usuário (o e-mail não é mais enviado)
+        erro = executar_sql(
+            "INSERT INTO usuario (nome, login, senha, perfil) VALUES (%s, %s, %s, %s)",
+            (nome, login, senha_hash, perfil)
+        )
+        
+        if erro:
+            return render_template("cadastro.html", erro=f"Erro ao cadastrar: {erro}")
+            
+        flash('Cadastro realizado com sucesso! Faça login.', 'success')
+        return redirect(url_for("login"))
+        
+    return render_template("cadastro.html", erro=None)
+
 @app.route("/logout")
 def logout():
     session.clear()
